@@ -257,8 +257,8 @@ footer {
     <div class="eyebrow">Werkzeug für Claude · eight estates</div>
     <h1>Marktdaten Wohnen</h1>
     <p class="standfirst">Kaufpreise für Eigentumswohnungen und Mehrfamilienhäuser
-      in Hamburg — aus den amtlichen Berichten des Gutachterausschusses, auf
-      Zuruf ausgewertet.</p>
+      in Hamburg, Wiesbaden und Kiel — aus den amtlichen Berichten der
+      Gutachterausschüsse, auf Zuruf ausgewertet.</p>
   </header>
 
   <section>
@@ -268,10 +268,11 @@ footer {
       Aufschlüsselung nach Baujahr und Lage. Grundlage sind
       <strong>notariell beurkundete Kaufverträge</strong> — keine Inseratspreise.</p>
     <dl class="facts">
-      <div class="fact"><dt>Gebiet</dt><dd>Hamburg, alle 104 Stadtteile</dd></div>
+      <div class="fact"><dt>Städte</dt><dd>Hamburg (104 Stadtteile), Wiesbaden
+        (26 Stadtbezirke), Kiel (26 Stadtteile)</dd></div>
       <div class="fact"><dt>Zeitraum</dt><dd>Preisjahre 2021 bis 2025</dd></div>
       <div class="fact"><dt>Objektarten</dt><dd>Eigentumswohnungen, Mehrfamilienhäuser</dd></div>
-      <div class="fact"><dt>Quelle</dt><dd>Gutachterausschuss für Grundstückswerte in Hamburg</dd></div>
+      <div class="fact"><dt>Quelle</dt><dd>Gutachterausschüsse der jeweiligen Stadt</dd></div>
       <div class="fact"><dt>Voraussetzung</dt><dd>Claude Code und Python 3.10 oder neuer</dd></div>
     </dl>
   </section>
@@ -312,6 +313,7 @@ footer {
       <li>Was kosten Eigentumswohnungen in Eppendorf?</li>
       <li>Wie haben sich die Preise seit 2021 entwickelt?</li>
       <li>Welche Stadtteile liegen unter 4.000 Euro pro Quadratmeter?</li>
+      <li>Zeig mir die Kaufpreise in Wiesbaden</li>
     </ul>
     <p>Bei Fragen nach einzelnen Zahlen antwortet Claude direkt. Bei einer
       Abfrage bekommst du eine eigenständige HTML-Datei, die du weitergeben
@@ -330,6 +332,8 @@ footer {
       <li><b>Preisindizes</b> für Eigentumswohnungen und Mehrfamilienhäuser,
         2015 bis 2025</li>
       <li><b>Kauffälle je Stadtteil</b> — die Stichprobe hinter jedem Mittelwert</li>
+      <li><b>Stadt-Umschalter</b> oben: Hamburg, Wiesbaden und Kiel. Wiesbaden
+        zusätzlich getrennt nach Neubau, Umwandlung und Weiterverkauf</li>
     </ul>
   </section>
 
@@ -346,8 +350,16 @@ footer {
         Verfügbar sind Verkaufszahlen, Stadtteilfaktoren und ein Preisindex.</li>
       <li><b>Nicht jeder Stadtteil hat einen Wert.</b> Bei weniger als drei
         Kauffällen weist der Bericht nichts aus. Je nach Jahr haben 70 bis 76
-        der 104 Stadtteile einen Preis.</li>
+        der 104 Hamburger Stadtteile einen Preis.</li>
+      <li><b>Wiesbadens Bezirkswerte sind gerechnet</b>, nicht abgelesen: nach
+        Kauffällen gewichtet aus den Zellen des Berichts. Der Bericht selbst
+        gewichtet nach Fläche und nennt deshalb leicht andere Gesamtwerte.</li>
+      <li><b>Frankfurt fehlt.</b> Die Stadt sperrt automatisierte Downloads.
+        Frankfurter Zahlen gehen nur über ein von Hand geladenes PDF.</li>
     </ul>
+    <p>Und: die Gutachterausschüsse grenzen unterschiedlich ab — Stadtteil gegen
+      Stadtbezirk, andere Segmente. Innerhalb einer Stadt sind Vergleiche
+      belastbar, zwischen Städten nur mit Einordnung.</p>
     <p>Achte bei einzelnen Stadtteilen auf die Kauffälle: ein Mittelwert aus fünf
       Verkäufen trägt weniger weit als einer aus 228.</p>
   </section>
@@ -379,8 +391,8 @@ footer {
   </section>
 
   <footer>
-    <div>Quelle der Zahlen: Gutachterausschuss für Grundstückswerte in Hamburg,
-      Immobilienmarktberichte 2022 bis 2026.</div>
+    <div>Quelle der Zahlen: die Gutachterausschüsse von Hamburg, Wiesbaden und
+      Kiel, Immobilienmarktberichte 2022 bis 2026.</div>
     <div>Die Auswertung ist deterministisch — kein Sprachmodell schätzt hier
       etwas. Jede Zahl stammt aus einer benannten Seite des Berichts.</div>
   </footer>
