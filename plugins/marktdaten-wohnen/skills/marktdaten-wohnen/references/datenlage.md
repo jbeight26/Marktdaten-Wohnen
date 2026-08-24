@@ -95,9 +95,57 @@ Zwei unabhängige Kontrollen laufen gegen jeden Jahrgang:
    Bericht ausgewiesenen Gesamtwert. Ein übersehener Stadtteil würde die Summe
    zerstören.
 
-## Weitere Städte
+## Wiesbaden
 
-Der Parser ist nicht stadtspezifisch. Eine weitere Stadt wird über einen Eintrag
+Bericht des Gutachterausschusses für Immobilienwerte Wiesbaden, frei abrufbar
+unter einer Jahres-Adresse. 26 Stadtbezirke, Preisjahr 2025.
+
+Wiesbaden trennt **drei Segmente**: Neubau (Erstverkauf), Umwandlung aus Miete
+und Weiterverkauf. Damit liefert es die Bestand/Neubau-Aufteilung auf
+Gebietsebene, die Hamburg nicht hergibt.
+
+Die Tabellen stehen als Stadtbezirk × Baujahr × Wohnfläche; jede Zelle enthält
+`Anzahl/Mittelpreis`. Der je Bezirk gezeigte Wert ist daraus **nach Kauffällen
+gewichtet gerechnet**. Der Bericht gewichtet nach Fläche und nennt deshalb
+leicht abweichende Gesamtwerte (etwa 3.842 statt 3.747 €/m² beim Weiterverkauf).
+Wer Wiesbadener Zahlen zitiert, sollte das dazusagen.
+
+Geprüft: die Fallzahlen aller drei Segmente treffen die Summenzeilen des
+Berichts exakt — 150 (Neubau), 75 (Umwandlung), 979 (Weiterverkauf).
+
+## Kiel
+
+Bericht des Gutachterausschusses der Landeshauptstadt Kiel. Die Adressen wechseln
+unregelmäßig, ein Jahresmuster gibt es nicht — das Skript liest die
+Übersichtsseite und findet die aktuelle Ausgabe selbst.
+
+26 Stadtteile, Preisjahr 2025. Stadtteilwerte führt Kiel **nur für
+Weiterverkäufe**; Neubau und Umwandlung stehen dort ausschließlich
+gesamtstädtisch. Je Stadtteil zusätzlich ausgewiesen: mittleres Baujahr und
+mittlere Wohnfläche.
+
+Der Gesamtwert für Kiel ist aus den Stadtteilen gewichtet gerechnet, nicht vom
+Gutachterausschuss ausgewiesen.
+
+Geprüft: null Abweichungen gegen den Rohtext der Stadtteiltabelle.
+
+## Frankfurt
+
+**Nicht eingebunden.** Die Stadt schützt ihre Downloads mit einer
+JavaScript-Prüfung von Cloudflare. Bot-Schutz wird nicht umgangen. Wer Frankfurt
+braucht, lädt das PDF im Browser und übergibt es mit `--pdf`.
+
+## Städte vergleichen
+
+Vorsicht. Die Gutachterausschüsse grenzen unterschiedlich ab: Hamburg zählt
+Stadtteile, Wiesbaden Stadtbezirke, Kiel statistische Stadtteile. Auch die
+Segmente unterscheiden sich — Hamburg schließt Neubau aus, Wiesbaden weist ihn
+getrennt aus. Innerhalb einer Stadt sind Vergleiche belastbar, zwischen Städten
+nur mit Einordnung.
+
+## Eine weitere Stadt ergänzen
+
+Der Kern-Parser ist nicht stadtspezifisch. Eine weitere Stadt wird über einen Eintrag
 in `SOURCES` in `scripts/imb.py` ergänzt: URL-Muster, Bezeichnung der
 Gebietseinheit und die Überschriften der Tabellen. Voraussetzung ist, dass der
 dortige Gutachterausschuss seinen Bericht als PDF unter einer nach Jahr

@@ -1,13 +1,17 @@
 ---
 name: marktdaten-wohnen
-description: Ruft die amtlichen Immobilienmarktberichte des Gutachterausschusses ab, wertet Kaufpreise für Eigentumswohnungen und Mehrfamilienhäuser je Stadtteil aus und erzeugt daraus eine interaktive HTML-Auswertung. Nutze diese Fähigkeit bei Fragen nach Immobilienpreisen, Kaufpreisen je Stadtteil, Quadratmeterpreisen, Marktdaten Wohnen oder dem Immobilienmarktbericht, etwa "starte eine neue Abfrage der Marktdaten", "aktualisiere die Immobilienpreise", "was kosten Eigentumswohnungen in Eppendorf", "zeig mir die Kaufpreise nach Stadtteil" oder "wie haben sich die Preise seit 2021 entwickelt".
+description: Ruft die amtlichen Immobilienmarktberichte der Gutachterausschüsse von Hamburg, Wiesbaden und Kiel ab, wertet Kaufpreise für Eigentumswohnungen und Mehrfamilienhäuser je Stadtteil aus und erzeugt daraus eine interaktive HTML-Auswertung. Nutze diese Fähigkeit bei Fragen nach Immobilienpreisen, Kaufpreisen je Stadtteil, Quadratmeterpreisen, Marktdaten Wohnen oder dem Immobilienmarktbericht, etwa "starte eine neue Abfrage der Marktdaten", "aktualisiere die Immobilienpreise", "was kosten Eigentumswohnungen in Eppendorf", "zeig mir die Kaufpreise in Wiesbaden", "wie sind die Preise in Kiel" oder "wie haben sich die Preise seit 2021 entwickelt".
 ---
 
 # Marktdaten Wohnen
 
-Wertet die Immobilienmarktberichte des Gutachterausschusses für Grundstückswerte
-aus und erzeugt eine eigenständige HTML-Seite mit Kaufpreisen je Stadtteil,
-Verlaufsansicht, Lagematrix und dem Vergleich Bestand gegen Neubau.
+Wertet die Immobilienmarktberichte der Gutachterausschüsse aus und erzeugt eine
+eigenständige HTML-Seite mit Kaufpreisen je Stadtteil, Verlaufsansicht,
+Lagematrix und dem Vergleich Bestand gegen Neubau.
+
+Abgedeckt sind **Hamburg, Wiesbaden und Kiel**; in der Seite schaltet man oben
+zwischen den Städten um. Die Berichte sind strukturell verschieden, jede Stadt
+hat deshalb einen eigenen Tabellenleser.
 
 Die Auswertung ist deterministisch: derselbe Bericht ergibt immer dieselben
 Zahlen. Kein Sprachmodell schätzt hier etwas — jede Zahl stammt aus einer
@@ -45,7 +49,8 @@ Wähle die Parameter nach dem, was gefragt wurde:
 | bestimmter Jahrgang | `--year 2025` |
 | Zeitraum | `--years 2023-2025` |
 | Berichte neu laden statt Zwischenspeicher | `--refresh` |
-| andere Stadt, sofern hinterlegt | `--source <name>` |
+| nur bestimmte Städte | `--cities wiesbaden` oder `--cities keine` |
+| andere Leitquelle | `--source <name>` |
 
 Der erste Lauf auf einem Rechner lädt rund 70 MB PDF und dauert etwa anderthalb
 Minuten. Danach greift ein Zwischenspeicher und es geht in Sekunden. Kündige die
@@ -89,6 +94,14 @@ Kurzfassung:
   nur Verkaufszahlen, Stadtteilfaktoren und einen Preisindex.
 - **Nicht jeder Stadtteil hat einen Wert.** Bei weniger als 3 Kauffällen weist
   der Bericht nichts aus.
+- **Wiesbadens Bezirkswerte sind gerechnet**, nicht abgelesen: gewichtet nach
+  Kauffällen aus den Zellen. Der Bericht gewichtet nach Fläche und nennt deshalb
+  leicht andere Gesamtwerte. Sage das, wenn jemand Wiesbadener Zahlen zitiert.
+- **Frankfurt fehlt bewusst.** Die Stadt sperrt automatisierte Downloads mit
+  einer Cloudflare-Prüfung. Bot-Schutz wird nicht umgangen; Frankfurt geht nur
+  über ein von Hand geladenes PDF mit `--pdf`.
+- **Städte nicht unbesehen vergleichen.** Die Gutachterausschüsse grenzen
+  unterschiedlich ab (Stadtteil gegen Stadtbezirk, andere Segmente).
 
 ## Wenn etwas schiefgeht
 

@@ -1350,7 +1350,13 @@ APP_JS = r"""
   // sähen die Balken in jedem Jahr gleich lang aus und die Entwicklung verschwände.
   var MAX = 0, STEP = 1;
 
+  var CITIES = DATA.cities || [];
+  var HEAD_SUB = document.querySelector('.sub').textContent;
+  var HEAD_CAVEAT = document.querySelector('.caveat').textContent;
+
   var state = {
+    stadt: DATA.sourceKey,    // Schlüssel der aktiven Stadt
+    segment2: null,           // gewähltes Segment der Zusatzstädte
     objekt: 'etw',            // 'etw' | 'mfh'
     segment: 'bestand',       // 'bestand' | 'neubau'
     view: 'year',
@@ -1904,6 +1910,158 @@ APP_JS = r"""
     if (tab) renderMatrix(parseInt(tab.dataset.myear, 10));
   });
 
+  /* --- Weitere Städte ------------------------------------------------- */
+
+  function activeCity() {
+    for (var i = 0; i < CITIES.length; i++) if (CITIES[i].key === state.stadt) return CITIES[i];
+    return null;
+  }
+
+  function renderCity() {
+    var c = activeCity();
+    var host = document.getElementById('city-card');
+    // Die Hamburg-Ansicht und die Zusatzstädte schließen einander aus.
+    ['kpis','chart-card','missing','standard-card','index-card','matrix-card','broker-card','table-card']
+      .forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.hidden = !!c;
+      });
+    document.getElementById('switches').hidden = !!c;
+    host.hidden = !c;
+
+    // Der Seitenkopf muss der gewählten Stadt folgen, sonst steht dort Hamburg
+    // über Wiesbadener Zahlen.
+    var h1 = document.querySelector('h1'), sub = document.querySelector('.sub'),
+        cav = document.querySelector('.caveat');
+    if (!c) {
+      h1.textContent = 'Eigentumswohnungen in ' + DATA.city;
+      sub.textContent = HEAD_SUB;
+      cav.textContent = HEAD_CAVEAT;
+      return;
+    }
+    h1.textContent = 'Eigentumswohnungen in ' + c.city;
+    sub.textContent = 'Mittlere Kaufpreise je m² Wohnfläche nach ' + c.areaLabel
+      + ', ' + c.dataYear;
+    cav.textContent = 'Quelle: ' + c.publisher + '. Grundlage sind beurkundete '
+      + 'Kaufverträge. Die Berichte der Städte grenzen unterschiedlich ab — '
+      + 'Werte zwischen Städten nur mit Vorsicht vergleichen.';
+
+    if (!state.segment2 || !c.segments.some(function (s) { return s.key === state.segment2; })) {
+      // Auf dem tragfähigsten Segment starten, nicht auf dem erstgenannten:
+      // Neubau umfasst oft nur eine Handvoll Bezirke.
+      var beste = c.segments.slice().sort(function (a, b) {
+        var za = Object.keys(a.areas).filter(function (k) { return a.areas[k].p != null; }).length;
+        var zb = Object.keys(b.areas).filter(function (k) { return b.areas[k].p != null; }).length;
+        return zb - za;
+      })[0];
+      state.segment2 = beste.key;
+    }
+    var seg = c.segments.filter(function (s) { return s.key === state.segment2; })[0];
+
+    document.getElementById('city-title').textContent =
+      'Kaufpreise nach ' + c.areaLabel + ' — ' + c.city;
+    document.getElementById('city-sub').textContent =
+      c.publisher + ', Bericht ' + c.reportYear + ', Preisjahr ' + c.dataYear + '.';
+
+    document.getElementById('city-segments').innerHTML = c.segments.map(function (s) {
+      return '<button class="tab" role="tab" data-seg="' + esc(s.key) + '" aria-selected="'
+        + (s.key === state.segment2) + '">' + esc(s.label) + '</button>';
+    }).join('');
+
+    var rows = Object.keys(seg.areas).map(function (n) {
+      var a = seg.areas[n];
+      return { name: n, value: a.p, count: a.c, marker: a.m,
+               baujahr: a.baujahr, wohnflaeche: a.wohnflaeche };
+    });
+    var withValue = rows.filter(function (r) { return r.value != null; })
+                        .sort(function (a, b) { return b.value - a.value; });
+    var without = rows.filter(function (r) { return r.value == null; });
+
+    var peak = withValue.length ? withValue[0].value : 1;
+    var nice = [500, 1000, 2000, 2500, 5000], step = 5000, max = peak;
+    for (var i = 0; i < nice.length; i++) {
+      if (Math.ceil(peak / nice[i]) <= 5) { step = nice[i]; max = Math.ceil(peak / nice[i]) * nice[i]; break; }
+    }
+    var ref = seg.total ? (seg.total / max * 100) : -10;
+
+    var kpis = [
+      kpi(c.city + ' gesamt', seg.total ? fmt(seg.total) : '—', seg.unit,
+          'gewichtet aus den ' + c.areaLabel + 'en', true),
+      kpi('Teuerster ' + c.areaLabel, withValue.length ? fmt(withValue[0].value) : '—',
+          seg.unit, withValue.length ? withValue[0].name : ''),
+      kpi('Günstigster ' + c.areaLabel,
+          withValue.length ? fmt(withValue[withValue.length - 1].value) : '—',
+          seg.unit, withValue.length ? withValue[withValue.length - 1].name : ''),
+      kpi('Kauffälle', seg.totalCount ? fmt(seg.totalCount) : '—', '',
+          'Segment ' + seg.label),
+      kpi('Ohne Wert', fmt(without.length), '', 'von ' + rows.length + ' ' + c.areaLabel + 'en')
+    ];
+    document.getElementById('city-kpis').innerHTML = kpis.join('');
+
+    var ticks = [], n = max / step;
+    for (var t = 0; t <= n; t++) {
+      var keep = (t === 0 || t === n || t === Math.round(n / 2)) ? ' tick-keep' : '';
+      var shift = t === 0 ? 'transform:none;' : (t === n ? 'transform:translateX(-100%);' : '');
+      ticks.push('<span class="tick' + keep + '" style="left:' + (t * 100 / n).toFixed(3)
+        + '%;' + shift + '">' + fmt(t * step) + '</span>');
+    }
+    var html = '<div class="axis" aria-hidden="true"><div></div><div></div>'
+      + '<div class="ticks">' + ticks.join('') + '</div><div></div></div>';
+
+    withValue.forEach(function (r, i) {
+      var detail = [fmt(r.value) + ' ' + seg.unit];
+      if (r.count != null) detail.push(r.count + ' Kauffälle');
+      if (r.baujahr) detail.push('Ø Baujahr ' + r.baujahr);
+      if (r.wohnflaeche) detail.push('Ø ' + r.wohnflaeche + ' m²');
+      html += '<div class="row" title="' + esc(detail.join(' · ')) + '">'
+        + '<div></div>'
+        + '<div class="row-name">' + esc(r.name) + '</div>'
+        + '<div class="row-track"><div class="row-bar" style="width:'
+        + (r.value / max * 100).toFixed(2) + '%"></div></div>'
+        + '<div class="row-value">' + fmt(r.value) + '</div></div>';
+    });
+
+    var chart = document.getElementById('city-chart');
+    chart.style.setProperty('--tick-step', (100 / n).toFixed(3) + '%');
+    chart.style.setProperty('--ref', ref.toFixed(3) + '%');
+    chart.innerHTML = html;
+
+    document.getElementById('city-note').textContent = seg.note || '';
+    document.getElementById('city-missing').innerHTML = without.length
+      ? '<div class="missing-head"><span class="marker">*</span><span>ohne Preisangabe — '
+        + without.length + ' ' + esc(c.areaLabel) + 'e</span></div><div class="chips">'
+        + without.map(function (r) { return '<span class="chip">' + esc(r.name) + '</span>'; }).join('')
+        + '</div>'
+      : '';
+    document.getElementById('city-extra').innerHTML = (c.notes || [])
+      .map(function (t) { return '<p class="matrix-note">' + esc(t) + '</p>'; }).join('')
+      + '<p class="matrix-note">Quelle: <a href="' + esc(c.pdfUrl) + '">Bericht '
+      + c.reportYear + '</a>'
+      + (c.sourcePage ? ' · <a href="' + esc(c.sourcePage) + '">Übersicht</a>' : '') + '</p>';
+  }
+
+  document.getElementById('city-segments').addEventListener('click', function (ev) {
+    var tab = ev.target.closest('.tab');
+    if (!tab) return;
+    state.segment2 = tab.dataset.seg;
+    renderCity();
+  });
+
+  document.getElementById('stadt-tabs').addEventListener('click', function (ev) {
+    var tab = ev.target.closest('.tab');
+    if (!tab) return;
+    Array.prototype.forEach.call(this.querySelectorAll('.tab'), function (t) {
+      t.setAttribute('aria-selected', t === tab);
+    });
+    state.stadt = tab.dataset.stadt;
+    state.segment2 = null;
+    renderCity();
+    if (state.stadt === DATA.sourceKey) {
+      render(); renderIndex(); renderStandard(); renderBroker();
+      renderMatrix(matrixYears().length ? matrixYears()[matrixYears().length - 1].dataYear : LAST.dataYear);
+    }
+  });
+
   /* --- Bestand gegen Neubau ------------------------------------------ */
 
   function renderStandard() {
@@ -2052,6 +2210,7 @@ APP_JS = r"""
   renderMatrix(mYears.length ? mYears[mYears.length - 1].dataYear : LAST.dataYear);
   renderBroker();
   renderStandard();
+  renderCity();
 })();
 """
 
@@ -2072,6 +2231,24 @@ def load_broker_data(path: Path) -> dict:
     if not entries:
         return {}
     return {"hinweis": data.get("_hinweis", ""), "eintraege": entries}
+
+
+def cities_payload(cities: list | None) -> list[dict]:
+    """Die zusätzlichen Städte im gemeinsamen Ausgabeformat."""
+    return [
+        {
+            "key": c.key, "city": c.city, "areaLabel": c.area_label,
+            "publisher": c.publisher, "reportYear": c.report_year,
+            "dataYear": c.data_year, "pdfUrl": c.pdf_url,
+            "sourcePage": c.source_page, "notes": c.notes,
+            "segments": [
+                {"key": g.key, "label": g.label, "unit": g.unit, "areas": g.areas,
+                 "total": g.total, "totalCount": g.total_count, "note": g.note}
+                for g in c.segments
+            ],
+        }
+        for c in (cities or [])
+    ]
 
 
 def report_payload(report: Report, live: bool, command: str) -> dict:
@@ -2121,8 +2298,10 @@ def report_payload(report: Report, live: bool, command: str) -> dict:
     }
 
 
-def render_html(report: Report, live: bool = False, command: str = "python imb.py") -> str:
+def render_html(report: Report, live: bool = False, command: str = "python imb.py",
+                cities: list | None = None) -> str:
     payload = report_payload(report, live, command)
+    payload["cities"] = cities_payload(cities)
     area_years = report.area_years or report.years
     latest, earliest = area_years[-1], area_years[0]
     span = (f"{earliest.data_year}–{latest.data_year}"
@@ -2153,6 +2332,13 @@ def render_html(report: Report, live: bool = False, command: str = "python imb.p
 
     title = f"Eigentumswohnungen {report.city} — Kaufpreise {span}"
 
+    alle_staedte = [(report.source_key, report.city)] + [(c.key, c.city) for c in (cities or [])]
+    stadt_tabs = "".join(
+        f'<button class="tab" role="tab" data-stadt="{html.escape(k)}" '
+        f'aria-selected="{str(i == 0).lower()}">{html.escape(n)}</button>'
+        for i, (k, n) in enumerate(alle_staedte)
+    )
+
     head = (
         "<!doctype html>\n<html lang=\"de\">\n<head>\n<meta charset=\"utf-8\">\n"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
@@ -2175,7 +2361,14 @@ def render_html(report: Report, live: bool = False, command: str = "python imb.p
    damit die Balken zwischen den Jahren vergleichbar bleiben.</p>
 <p class="status" id="live-status"></p>
 
-<div class="switches">
+<div class="switches" id="stadt-switch"{'' if len(alle_staedte) > 1 else ' hidden'}>
+  <div class="switch">
+    <span class="switch-label">Stadt</span>
+    <div class="tabs" id="stadt-tabs" role="tablist">{stadt_tabs}</div>
+  </div>
+</div>
+
+<div class="switches" id="switches">
   <div class="switch">
     <span class="switch-label">Objektart</span>
     <div class="tabs" id="objekt-tabs" role="tablist">
@@ -2194,7 +2387,7 @@ def render_html(report: Report, live: bool = False, command: str = "python imb.p
 
 <div class="kpis" id="kpis"></div>
 
-<section class="card">
+<section class="card" id="chart-card">
   <h2 id="chart-title">Kaufpreise nach {html.escape(report.area_label)}</h2>
   <p class="section-note">Absteigend sortiert. Favoriten stehen oben.
      „Verlauf“ zeigt die Spanne zwischen niedrigstem und höchstem Jahreswert.</p>
@@ -2222,6 +2415,18 @@ def render_html(report: Report, live: bool = False, command: str = "python imb.p
 </section>
 
 <section class="card" id="missing"></section>
+
+<section class="card" id="city-card" hidden>
+  <h2 id="city-title"></h2>
+  <p class="section-note" id="city-sub"></p>
+  <div class="kpis" id="city-kpis"></div>
+  <div class="tabs" id="city-segments" role="tablist"></div>
+  <div class="chart" id="city-chart"></div>
+  <p class="legend-note"><span><span class="key-line"></span>Senkrechte Linie: Gesamtwert</span></p>
+  <p class="matrix-note" id="city-note"></p>
+  <div class="missing-group" id="city-missing"></div>
+  <div id="city-extra"></div>
+</section>
 
 <section class="card" id="standard-card">
   <h2>Bestand gegen Neubau</h2>
@@ -2273,7 +2478,7 @@ def render_html(report: Report, live: bool = False, command: str = "python imb.p
   </div>
 </section>
 
-<section class="card">
+<section class="card" id="table-card">
   <details>
     <summary>Alle Werte als Tabelle</summary>
     <div class="table-scroll">
@@ -2413,6 +2618,66 @@ def _command_line(args: argparse.Namespace) -> str:
     return " ".join(bits)
 
 
+def collect_cities(spec: str, cache_dir: Path, refresh: bool = False) -> list:
+    """Lädt und wertet die zusätzlich unterstützten Städte aus.
+
+    Fehlschläge einzelner Städte brechen den Lauf nicht ab -- Hamburg bleibt die
+    Leitquelle, die anderen kommen dazu, soweit sie erreichbar sind.
+    """
+    if not spec or spec.lower() in {"keine", "none", ""}:
+        return []
+    try:
+        import staedte
+    except ImportError:
+        print("  Hinweis: staedte.py nicht gefunden, weitere Städte übersprungen")
+        return []
+
+    gewuenscht = ({"wiesbaden", "kiel"} if spec.lower() in {"alle", "all"}
+                  else {t.strip().lower() for t in spec.split(",") if t.strip()})
+    out = []
+
+    if "wiesbaden" in gewuenscht:
+        print("→ Wiesbaden …", end=" ", flush=True)
+        try:
+            jahr = date.today().year
+            pfad = None
+            for kandidat in (jahr, jahr - 1):
+                try:
+                    pfad = staedte.fetch_wiesbaden(cache_dir, kandidat, refresh)
+                    jahr = kandidat
+                    break
+                except DownloadError:
+                    continue
+            if pfad is None:
+                raise DownloadError("kein Jahrgang abrufbar")
+            data = staedte.extract_wiesbaden(pfad, jahr)
+            out.append(data)
+            print(f"Preisjahr {data.data_year}: {len(data.segments)} Segmente, "
+                  f"{len(data.segments[0].areas)} {data.area_label}e")
+        except (DownloadError, ExtractionError) as exc:
+            print(f"übersprungen ({exc})")
+
+    if "kiel" in gewuenscht:
+        print("→ Kiel …", end=" ", flush=True)
+        try:
+            resp = requests.get(staedte.KI_INDEX, headers=BROWSER_HEADERS, timeout=40)
+            links = staedte.discover_kiel(lambda _u: resp.text)
+            if not links:
+                raise DownloadError("keine Berichtsadresse auf der Übersichtsseite")
+            jahr = max(links)
+            pfad = staedte.fetch_kiel(cache_dir, jahr, links[jahr], refresh)
+            data = staedte.extract_kiel(pfad, jahr, links[jahr])
+            out.append(data)
+            seg = data.segments[0]
+            mit = sum(1 for a in seg.areas.values() if a["p"] is not None)
+            print(f"Preisjahr {data.data_year}: {mit} von {len(seg.areas)} "
+                  f"{data.area_label}en mit Preis")
+        except (DownloadError, ExtractionError, requests.RequestException) as exc:
+            print(f"übersprungen ({exc})")
+
+    return out
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="imb",
@@ -2446,6 +2711,9 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Erneut herunterladen und Seitenindex verwerfen")
     parser.add_argument("--list-sources", action="store_true",
                         help="Verfügbare Quellen anzeigen und beenden")
+    parser.add_argument("--cities", default="alle",
+                        help="Weitere Städte: „alle“ (Standard), „keine“ oder "
+                             "eine Auswahl wie „wiesbaden,kiel“")
     return parser
 
 
@@ -2505,8 +2773,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                                      overrides, local_pdf)
         for note in notes:
             print(f"  Hinweis: {note}")
+        extra = collect_cities(args.cities, args.cache_dir, args.refresh)
         build.report = report                                    # type: ignore[attr-defined]
-        return render_html(report, live=live, command=command)
+        build.cities = extra                                     # type: ignore[attr-defined]
+        return render_html(report, live=live, command=command, cities=extra)
 
     # --- Bauen ---
     try:
@@ -2532,9 +2802,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.json_out:
         args.json_out.parent.mkdir(parents=True, exist_ok=True)
+        daten = report_payload(report, False, command)
+        daten["cities"] = cities_payload(getattr(build, "cities", []))
         args.json_out.write_text(
-            json.dumps(report_payload(report, False, command), ensure_ascii=False, indent=2),
-            encoding="utf-8",
+            json.dumps(daten, ensure_ascii=False, indent=2), encoding="utf-8",
         )
         print(f"→ JSON geschrieben: {args.json_out.resolve()}")
 

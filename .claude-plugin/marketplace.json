@@ -8,8 +8,8 @@
     {
       "name": "marktdaten-wohnen",
       "source": "./plugins/marktdaten-wohnen",
-      "version": "1.0.0",
-      "description": "Amtliche Immobilienmarktberichte des Gutachterausschusses abrufen, Kaufpreise je Stadtteil auswerten und als interaktive Seite darstellen."
+      "version": "1.1.0",
+      "description": "Amtliche Immobilienmarktberichte der Gutachterausschüsse abrufen, Kaufpreise je Stadtteil für Hamburg, Wiesbaden und Kiel auswerten und als interaktive Seite darstellen."
     }
   ]
 }

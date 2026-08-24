@@ -39,8 +39,16 @@ und die Auswertung ist in Sekunden fertig.
 Grundlage sind **notariell beurkundete Kaufverträge**, nicht Angebotspreise.
 Das ist der belastbarste verfügbare Datensatz für tatsächlich gezahlte Preise.
 
-Aktuell hinterlegt: Hamburg, Preisjahre 2021 bis 2025. Weitere Städte lassen
-sich über einen Eintrag in `scripts/imb.py` ergänzen.
+Abgedeckt sind drei Städte:
+
+| Stadt | Gebiete | Segmente | Preisjahr |
+|---|---|---|---|
+| Hamburg | 104 Stadtteile | Bestand (ohne Neubau) | 2021–2025 |
+| Wiesbaden | 26 Stadtbezirke | Neubau, Umwandlung, Weiterverkauf | 2025 |
+| Kiel | 26 Stadtteile | Weiterverkauf | 2025 |
+
+Oben in der Seite schaltet man zwischen den Städten um. Frankfurt fehlt: die
+Stadt sperrt automatisierte Downloads mit einer Cloudflare-Prüfung.
 
 Wichtige Grenzen: Für Neubau gibt es keine Werte je Stadtteil, für
 Mehrfamilienhäuser keine Quadratmeterpreise je Stadtteil, und Stadtteile mit
