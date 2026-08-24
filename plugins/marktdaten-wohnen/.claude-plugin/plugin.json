@@ -1,0 +1,9 @@
+{
+  "name": "marktdaten-wohnen",
+  "version": "1.0.0",
+  "description": "Amtliche Immobilienmarktberichte des Gutachterausschusses abrufen, Kaufpreise je Stadtteil auswerten und als interaktive Seite darstellen.",
+  "author": {
+    "name": "eight estates"
+  },
+  "keywords": ["immobilien", "marktdaten", "kaufpreise", "hamburg", "gutachterausschuss"]
+}

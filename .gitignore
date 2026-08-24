@@ -1,0 +1,13 @@
+# Erzeugte Auswertungen gehören nicht ins Repository
+kaufpreise-*.html
+kaufpreise-*.json
+marktdaten-wohnen.html
+marktdaten-wohnen.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# macOS
+.DS_Store

@@ -1,0 +1,15 @@
+{
+  "name": "eight-estates",
+  "description": "Interne Werkzeuge von eight estates für die Arbeit mit Immobilienmarktdaten.",
+  "owner": {
+    "name": "eight estates"
+  },
+  "plugins": [
+    {
+      "name": "marktdaten-wohnen",
+      "source": "./plugins/marktdaten-wohnen",
+      "version": "1.0.0",
+      "description": "Amtliche Immobilienmarktberichte des Gutachterausschusses abrufen, Kaufpreise je Stadtteil auswerten und als interaktive Seite darstellen."
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "_hinweis": "Zahlen Dritter. NICHT mit den amtlichen Kaufpreisen verrechnen oder mitteln. Achte auf die Datengrundlage: 'Angebotspreis' misst Inserate, 'Transaktion' misst Abschlüsse. Nur Letzteres ist mit dem Gutachterausschuss vergleichbar.",
+  "_anleitung": "Eintrag ausfüllen: 'werte' mit Zahlen belegen, 'stand' auf das Datum des Berichts setzen. 'ebene' ist 'stadt' oder 'stadtteil'; bei 'stadtteil' die Namen genau wie im Immobilienmarktbericht schreiben. Einträge ohne Werte erscheinen als offener Platzhalter.",
+  "eintraege": [
+    {
+      "quelle": "Colliers",
+      "bericht": "Residential Investment / Wohnreport",
+      "url": "https://www.colliers.de/residential-investment/",
+      "stand": "",
+      "art": "Angebotspreis",
+      "datenbasis": "Maklerportfolio und Marktbeobachtung",
+      "ebene": "stadt",
+      "einheit": "€/m²",
+      "werte": {},
+      "notiz": "Colliers stellt die Hamburg-Zahlen nicht frei ins Netz; der Report liegt hinter einem Anfrageformular. Nach dem Download hier eintragen, z. B. \"Hamburg\": 6100."
+    },
+    {
+      "quelle": "vdpResearch",
+      "bericht": "Immobilienpreisindex, Einzelstadtwerte",
+      "url": "https://www.vdpresearch.de/",
+      "stand": "",
+      "art": "Transaktionspreis",
+      "datenbasis": "Finanzierungsdaten der Pfandbriefbanken",
+      "ebene": "stadt",
+      "einheit": "€/m²",
+      "werte": {},
+      "notiz": "Transaktionsbasiert und damit deutlich näher am Gutachterausschuss als Portalzahlen. Als Quervergleich belastbarer als Angebotspreise."
+    }
+  ]
+}
