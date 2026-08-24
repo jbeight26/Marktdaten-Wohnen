@@ -2822,7 +2822,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.serve:
         return serve(build, args.serve, page)
 
-    out_path = args.out or Path(f"kaufpreise-{source.key}.html")
+    out_path = args.out or Path("marktdaten-wohnen.html")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(page, encoding="utf-8")
     print(f"→ HTML geschrieben: {out_path.resolve()}")
