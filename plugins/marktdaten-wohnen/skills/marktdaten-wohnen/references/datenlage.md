@@ -21,11 +21,17 @@ Auf daten-hamburg.de liegen die Berichte **IMB2022 bis IMB2026**; ältere Jahre
 sind dort nicht abrufbar. Ein Bericht weist jeweils das Vorjahr aus: IMB2025
 enthält die Preise für 2024.
 
-**IMB2026 führt die Stadtteiltabelle nicht mehr.** Der Bericht wurde umgebaut;
-Eigentumswohnungen erscheinen dort nur noch nach Baujahr und Lagequalität, für
-Stadtteile stehen lediglich dimensionslose Faktoren. Das Skript überspringt den
-Jahrgang für die Stadtteilansicht selbstständig, nutzt ihn aber für Lagematrix
-und Indexreihen — darüber kommt das Preisjahr 2025 in die Auswertung.
+**Aus IMB2026 lassen sich die Stadtteilwerte nicht auslesen.** Die Tabellen
+stehen dort im Bericht, auf denselben Seiten wie im Vorjahr, sind aber als
+Vektorkonturen gesetzt statt als Text — 32 der 214 Seiten sind so gesetzt,
+im Vorjahr war es eine. Seite 44 enthält 2025 noch 1.845 Textzeichen bei 60
+Kurvenobjekten, 2026 nur 38 Textzeichen bei 2.546 Kurven.
+
+Sage das, wenn jemand nach dem fehlenden Jahr fragt, und sage auch, dass
+`--page` hier nicht hilft: es gibt keinen Text zum Auslesen. Nötig wäre OCR
+oder eine Anfrage beim Gutachterausschuss. Das Skript überspringt den Jahrgang
+für die Stadtteilansicht, nutzt ihn aber für Lagematrix und Indexreihen —
+darüber kommt das Preisjahr 2025 dennoch in die Auswertung.
 
 Damit umfasst die Stadtteilreihe die Preisjahre **2021 bis 2024**.
 

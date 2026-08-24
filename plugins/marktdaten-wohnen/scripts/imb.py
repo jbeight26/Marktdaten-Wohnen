@@ -221,6 +221,8 @@ class YearData:
     headings: dict[str, str] = field(default_factory=dict)
     # Baujahresklasse -> Kennzahl -> Lagequalität -> Wert
     quality: dict[str, dict[str, dict[str, int | None]]] = field(default_factory=dict)
+    # Warum eine Tabelle fehlt -- wichtig, wenn der Jahrgang sonst brauchbar ist
+    failures: dict[str, str] = field(default_factory=dict)
 
     @property
     def priced(self) -> dict[str, AreaValues]:
@@ -590,9 +592,24 @@ def find_table_page(pdf, table: Table, hint: int | None = None) -> int:
             break
 
     if first is None:
+        # Sonderfall benennen: Seiten, auf denen die Schrift in Konturen
+        # umgewandelt wurde, tragen fast keinen Text, aber sehr viele Kurven.
+        # Dort greift auch --page nicht, weil es nichts auszulesen gibt.
+        verdaechtig = []
+        for i, page in enumerate(pdf.pages):
+            if len(page.curves) > 800 and len(page.extract_text() or "") < 200:
+                verdaechtig.append(i + 1)
+            page.close()
+        hinweis = ""
+        if verdaechtig:
+            hinweis = (f" Auffällig: die Seiten {verdaechtig[:6]} enthalten fast "
+                       "keinen Text, aber sehr viele Vektorobjekte — dort ist die "
+                       "Schrift vermutlich in Konturen umgewandelt und maschinell "
+                       "nicht lesbar. --page hilft in diesem Fall nicht, nötig "
+                       "wäre OCR.")
         raise ExtractionError(
             f"Überschrift der Tabelle „{table.label}“ nicht gefunden "
-            f"(gesucht: /{table.heading_re}/)."
+            f"(gesucht: /{table.heading_re}/).{hinweis}"
         )
 
     candidates = []
@@ -974,6 +991,7 @@ def extract_year(pdf_path: Path, source: Source, report_year: int,
         raise ExtractionError(failures[PRICE_TABLE.key])
 
     data.areas = dict(sorted(data.areas.items()))
+    data.failures = failures
     return data
 
 
@@ -1012,10 +1030,19 @@ def build_report(source: Source, years: Sequence[int], cache_dir: Path,
             notes.append(f"{year}: {exc}")
             continue
         report.years.append(data)
-        print(f"Preise {data.data_year}: "
-              f"{len(data.priced)} von {len(data.areas)} {source.area_label}en"
-              + (f", Kauffälle S.{data.pages['kauffaelle']}"
-                 if "kauffaelle" in data.pages else ", ohne Kauffälle"), flush=True)
+        if data.priced:
+            print(f"Preise {data.data_year}: "
+                  f"{len(data.priced)} von {len(data.areas)} {source.area_label}en"
+                  + (f", Kauffälle S.{data.pages['kauffaelle']}"
+                     if "kauffaelle" in data.pages else ", ohne Kauffälle"), flush=True)
+        else:
+            print(f"Preise {data.data_year}: keine {source.area_label}werte", flush=True)
+            grund = data.failures.get(PRICE_TABLE.key, "")
+            if grund:
+                notes.append(f"{year}: {grund}")
+            if data.quality:
+                notes.append(f"{year}: Lagetabelle und Indexreihen sind dennoch "
+                             "ausgewertet und stecken in der Auswertung.")
 
     report.years.sort(key=lambda y: y.data_year)
 

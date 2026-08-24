@@ -107,9 +107,11 @@ Kurzfassung:
 
 - **Download scheitert** — die Fehlermeldung nennt die URL. Lade das PDF im
   Browser und übergib es mit `--pdf <Pfad> --year <Jahr>`.
-- **Tabelle nicht gefunden** — der Gutachterausschuss baut den Bericht
-  gelegentlich um. Mit `--page preis=<Seitenzahl>` lässt sich die Seite
-  erzwingen.
+- **Tabelle nicht gefunden** — mit `--page preis=<Seitenzahl>` lässt sich die
+  Seite erzwingen. Nennt die Fehlermeldung dagegen Seiten mit vielen
+  Vektorobjekten, ist die Schrift dort in Konturen umgewandelt; dann hilft
+  `--page` nicht und nur OCR käme in Frage. Behaupte in diesem Fall nicht, die
+  Tabelle fehle im Bericht — sie ist nur nicht maschinell lesbar.
 - **Läuft ungewöhnlich lange** — das Skript meldet jeden Schritt. Bleibt es
   stumm, liegt der Zwischenspeicher vermutlich auf einem Cloud-Laufwerk;
   `--cache-dir` auf einen lokalen Pfad setzen.
