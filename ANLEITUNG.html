@@ -1,0 +1,388 @@
+<meta charset="utf-8">
+<title>Marktdaten Wohnen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+:root {
+  color-scheme: light;
+  --ground:      #f7f9fa;
+  --surface:     #ffffff;
+  --surface-2:   #eef3f5;
+  --ink:         #16232a;
+  --ink-2:       #40525c;
+  --muted:       #5f7079;
+  --line:        #dbe4e8;
+  --line-soft:   #e8eef1;
+  --accent:      #0d5c66;
+  --accent-ink:  #0a4a52;
+  --accent-wash: #e2f0f2;
+  --signal:      #9a6210;
+  --signal-wash: #fbf1e0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground:      #0d1417;
+    --surface:     #141d21;
+    --surface-2:   #1b262b;
+    --ink:         #eaf2f4;
+    --ink-2:       #b3c4cb;
+    --muted:       #8497a0;
+    --line:        #243237;
+    --line-soft:   #1d292e;
+    --accent:      #58b3bf;
+    --accent-ink:  #7fc9d3;
+    --accent-wash: #173236;
+    --signal:      #dba14a;
+    --signal-wash: #2a2113;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground:      #0d1417;
+  --surface:     #141d21;
+  --surface-2:   #1b262b;
+  --ink:         #eaf2f4;
+  --ink-2:       #b3c4cb;
+  --muted:       #8497a0;
+  --line:        #243237;
+  --line-soft:   #1d292e;
+  --accent:      #58b3bf;
+  --accent-ink:  #7fc9d3;
+  --accent-wash: #173236;
+  --signal:      #dba14a;
+  --signal-wash: #2a2113;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  font-size: 16.5px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 4.5rem 1.5rem 6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 3.25rem;
+}
+
+/* --- Kopf --- */
+.masthead { display: flex; flex-direction: column; gap: 0.9rem; }
+.eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 600;
+}
+h1 {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: clamp(2.3rem, 6vw, 3.1rem);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+  margin: 0;
+  text-wrap: balance;
+}
+.standfirst {
+  font-size: 1.14rem;
+  color: var(--ink-2);
+  margin: 0;
+  max-width: 34rem;
+  text-wrap: pretty;
+}
+
+/* --- Abschnitte --- */
+section { display: flex; flex-direction: column; gap: 1.1rem; }
+h2 {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--line);
+  text-wrap: balance;
+}
+h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--ink);
+}
+p { margin: 0; max-width: 40rem; text-wrap: pretty; }
+a { color: var(--accent-ink); text-underline-offset: 0.18em; }
+a:focus-visible, .cmd:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+strong { font-weight: 600; }
+
+/* --- Schritte: echte Reihenfolge, deshalb nummeriert --- */
+.steps { display: flex; flex-direction: column; gap: 1.6rem; margin: 0; padding: 0; list-style: none; counter-reset: s; }
+.step { display: grid; grid-template-columns: 2rem 1fr; gap: 0 1rem; align-items: start; counter-increment: s; }
+.step::before {
+  content: counter(s);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-wash);
+  width: 2rem; height: 2rem;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  margin-top: -0.15rem;
+}
+.step > * { grid-column: 2; }
+.step-body { display: flex; flex-direction: column; gap: 0.7rem; }
+
+/* --- Befehle --- */
+.cmd {
+  display: block;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 7px 7px 0;
+  padding: 0.75rem 0.95rem;
+  overflow-x: auto;
+  white-space: pre;
+  color: var(--ink);
+}
+.cmd + .cmd { margin-top: 0.5rem; }
+code:not(.cmd) {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.87em;
+  background: var(--surface-2);
+  padding: 0.1em 0.38em;
+  border-radius: 4px;
+}
+
+/* --- Beispielsätze --- */
+.says { display: flex; flex-direction: column; gap: 0.55rem; margin: 0; padding: 0; list-style: none; }
+.says li {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.08rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: 9px;
+  padding: 0.62rem 0.95rem;
+}
+.says li::before { content: "„"; color: var(--muted); }
+.says li::after  { content: "\201C"; color: var(--muted); }
+
+/* --- Merkmalsliste --- */
+.facts { display: grid; gap: 0; margin: 0; padding: 0; }
+.fact {
+  display: grid;
+  grid-template-columns: 11rem 1fr;
+  gap: 0.4rem 1.4rem;
+  padding: 0.72rem 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.fact:first-child { border-top: 1px solid var(--line-soft); }
+.fact dt { color: var(--muted); font-size: 0.86rem; }
+.fact dd { margin: 0; color: var(--ink-2); }
+
+/* --- Hinweis --- */
+.note {
+  background: var(--signal-wash);
+  border: 1px solid color-mix(in srgb, var(--signal) 28%, transparent);
+  border-radius: 9px;
+  padding: 0.95rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.note h3 { color: var(--signal); font-size: 0.83rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.note p { color: var(--ink-2); font-size: 0.95rem; }
+
+/* --- Grenzen --- */
+.limits { display: flex; flex-direction: column; gap: 0.85rem; margin: 0; padding: 0; list-style: none; }
+.limits li {
+  padding-left: 1.1rem;
+  position: relative;
+  color: var(--ink-2);
+  max-width: 40rem;
+}
+.limits li::before {
+  content: "";
+  position: absolute; left: 0; top: 0.72em;
+  width: 0.42rem; height: 1px;
+  background: var(--accent);
+}
+.limits b { color: var(--ink); font-weight: 600; }
+
+/* --- Störungen --- */
+.trouble { display: flex; flex-direction: column; gap: 1.15rem; margin: 0; }
+.trouble > div { display: flex; flex-direction: column; gap: 0.35rem; }
+.trouble dt { font-weight: 600; font-size: 0.95rem; }
+.trouble dd { margin: 0; color: var(--ink-2); font-size: 0.95rem; max-width: 40rem; }
+
+footer {
+  border-top: 1px solid var(--line);
+  padding-top: 1.4rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+@media (max-width: 34rem) {
+  .page { padding: 3rem 1.15rem 4rem; gap: 2.6rem; }
+  .fact { grid-template-columns: 1fr; gap: 0.15rem; }
+  .step { grid-template-columns: 1.6rem 1fr; gap: 0 0.75rem; }
+  .step::before { width: 1.6rem; height: 1.6rem; font-size: 0.72rem; }
+}
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <div class="eyebrow">Werkzeug für Claude · eight estates</div>
+    <h1>Marktdaten Wohnen</h1>
+    <p class="standfirst">Kaufpreise für Eigentumswohnungen und Mehrfamilienhäuser
+      in Hamburg — aus den amtlichen Berichten des Gutachterausschusses, auf
+      Zuruf ausgewertet.</p>
+  </header>
+
+  <section>
+    <h2>Was es tut</h2>
+    <p>Du bittest Claude um die Marktdaten, und bekommst eine fertige Seite mit
+      Kaufpreisen je Stadtteil, Preisverlauf über mehrere Jahre und einer
+      Aufschlüsselung nach Baujahr und Lage. Grundlage sind
+      <strong>notariell beurkundete Kaufverträge</strong> — keine Inseratspreise.</p>
+    <dl class="facts">
+      <div class="fact"><dt>Gebiet</dt><dd>Hamburg, alle 104 Stadtteile</dd></div>
+      <div class="fact"><dt>Zeitraum</dt><dd>Preisjahre 2021 bis 2025</dd></div>
+      <div class="fact"><dt>Objektarten</dt><dd>Eigentumswohnungen, Mehrfamilienhäuser</dd></div>
+      <div class="fact"><dt>Quelle</dt><dd>Gutachterausschuss für Grundstückswerte in Hamburg</dd></div>
+      <div class="fact"><dt>Voraussetzung</dt><dd>Claude Code und Python 3.10 oder neuer</dd></div>
+    </dl>
+  </section>
+
+  <section>
+    <h2>Einmalig einrichten</h2>
+    <ol class="steps">
+      <li class="step">
+        <div class="step-body">
+          <h3>Den Marktplatz hinzufügen</h3>
+          <p>In Claude Code eingeben:</p>
+          <code class="cmd">/plugin marketplace add jbeight26/Marktdaten-Wohnen</code>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-body">
+          <h3>Das Plugin installieren</h3>
+          <code class="cmd">/plugin install marktdaten-wohnen@eight-estates</code>
+          <p>Erscheint danach der Hinweis <code>Run /reload-plugins to activate.</code>,
+             führe auch diesen Befehl aus.</p>
+        </div>
+      </li>
+    </ol>
+    <div class="note">
+      <h3>Der erste Aufruf dauert</h3>
+      <p>Beim ersten Mal richtet sich das Plugin ein und lädt rund 70 MB an
+         Berichten — zusammen etwa zwei Minuten. Danach ist jede Abfrage in
+         wenigen Sekunden fertig, weil die Berichte auf deinem Rechner bleiben.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Benutzen</h2>
+    <p>Kein Befehl nötig, sag es einfach normal:</p>
+    <ul class="says">
+      <li>Starte eine neue Abfrage der Marktdaten</li>
+      <li>Zeig mir die Kaufpreise nach Stadtteil</li>
+      <li>Was kosten Eigentumswohnungen in Eppendorf?</li>
+      <li>Wie haben sich die Preise seit 2021 entwickelt?</li>
+      <li>Welche Stadtteile liegen unter 4.000 Euro pro Quadratmeter?</li>
+    </ul>
+    <p>Bei Fragen nach einzelnen Zahlen antwortet Claude direkt. Bei einer
+      Abfrage bekommst du eine eigenständige HTML-Datei, die du weitergeben
+      kannst — sie braucht weder Server noch Internet.</p>
+  </section>
+
+  <section>
+    <h2>Was die Auswertung zeigt</h2>
+    <ul class="limits">
+      <li><b>Kaufpreise je Stadtteil</b>, absteigend sortiert, mit Suche und
+        Favoriten zum Anheften</li>
+      <li><b>Verlauf</b> über alle Jahrgänge, mit der Preisspanne je Stadtteil</li>
+      <li><b>Baujahr und Lagequalität</b> als Farbmatrix, neun Baujahresklassen
+        mal fünf Lagen</li>
+      <li><b>Bestand gegen Neubau</b> über die normierte Standardwohnung</li>
+      <li><b>Preisindizes</b> für Eigentumswohnungen und Mehrfamilienhäuser,
+        2015 bis 2025</li>
+      <li><b>Kauffälle je Stadtteil</b> — die Stichprobe hinter jedem Mittelwert</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Was die Daten nicht hergeben</h2>
+    <p>Das Plugin schätzt nicht und rechnet nichts hoch. Wo der Bericht schweigt,
+      sagt es das. Diese drei Grenzen begegnen dir am ehesten:</p>
+    <ul class="limits">
+      <li><b>Neubau je Stadtteil gibt es nicht.</b> Die Stadtteiltabelle des
+        Berichts ist ausdrücklich „ohne Neubau“. Der Vergleich Bestand gegen
+        Neubau existiert nur gesamtstädtisch.</li>
+      <li><b>Für Mehrfamilienhäuser gibt es keine Quadratmeterpreise je
+        Stadtteil.</b> Diese Objektart wird über Ertragsfaktoren bewertet.
+        Verfügbar sind Verkaufszahlen, Stadtteilfaktoren und ein Preisindex.</li>
+      <li><b>Nicht jeder Stadtteil hat einen Wert.</b> Bei weniger als drei
+        Kauffällen weist der Bericht nichts aus. Je nach Jahr haben 70 bis 76
+        der 104 Stadtteile einen Preis.</li>
+    </ul>
+    <p>Achte bei einzelnen Stadtteilen auf die Kauffälle: ein Mittelwert aus fünf
+      Verkäufen trägt weniger weit als einer aus 228.</p>
+  </section>
+
+  <section>
+    <h2>Wenn etwas nicht klappt</h2>
+    <dl class="trouble">
+      <div>
+        <dt>Claude findet das Plugin nicht</dt>
+        <dd>Beide Einrichtungsbefehle ausgeführt? Danach einmal
+          <code>/reload-plugins</code> versuchen.</dd>
+      </div>
+      <div>
+        <dt>Es passiert scheinbar nichts</dt>
+        <dd>Beim ersten Aufruf ist das normal — es lädt im Hintergrund. Gib ihm
+          zwei Minuten.</dd>
+      </div>
+      <div>
+        <dt>Fehlermeldung zum Download</dt>
+        <dd>Die Meldung nennt die Adresse des Berichts. Lade das PDF im Browser
+          und sag Claude, wo es liegt.</dd>
+      </div>
+      <div>
+        <dt>Eine neue Fassung ist verfügbar</dt>
+        <dd>Aktualisierungen kommen nicht von allein:
+          <code class="cmd">/plugin marketplace update eight-estates</code></dd>
+      </div>
+    </dl>
+  </section>
+
+  <footer>
+    <div>Quelle der Zahlen: Gutachterausschuss für Grundstückswerte in Hamburg,
+      Immobilienmarktberichte 2022 bis 2026.</div>
+    <div>Die Auswertung ist deterministisch — kein Sprachmodell schätzt hier
+      etwas. Jede Zahl stammt aus einer benannten Seite des Berichts.</div>
+  </footer>
+
+</div>
