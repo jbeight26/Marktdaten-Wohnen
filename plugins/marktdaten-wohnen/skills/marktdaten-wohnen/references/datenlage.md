@@ -2,6 +2,26 @@
 
 Referenz für Rückfragen zu Herkunft, Reichweite und Verlässlichkeit der Zahlen.
 
+## Wo die Zahlen liegen
+
+In einer Datenbank, nicht in den PDFs. Jeder Bericht wird **einmal** ausgelesen;
+danach beantwortet der Speicher alle Fragen. Das hat drei Folgen, die du kennen
+solltest:
+
+- **Kein Abruf im Normalfall.** Ein gewöhnlicher Lauf braucht kein Internet und
+  keine PDFs. Nur `--aktualisieren` sieht nach neuen Berichten.
+- **Alte Jahrgänge bleiben.** Hamburg hält nur die Berichte 2022–2026 online.
+  Was dort herausfällt, wäre ohne Speicher unwiederbringlich verloren.
+- **Korrekturen sind nachweisbar.** Jeder Wert trägt mit, aus welchem Bericht
+  er stammt. Weist ein späterer Bericht denselben Jahrgang anders aus, stehen
+  beide Werte nebeneinander; angezeigt wird der neuere. `--korrekturen <stadt>`
+  listet die Abweichungen.
+
+Das ist keine Theorie: Für **Frankfurt 2024 hat der Bericht 2026 elf von
+fünfzehn Gebietswerten geändert** gegenüber dem Bericht 2025, teils um mehr als
+ein Prozent. Wer eine Zahl aus einem frisch erschienenen Jahrgang zitiert,
+sollte wissen, dass sie sich noch bewegen kann.
+
 ## Woher die Zahlen kommen
 
 Quelle ist der jährliche Immobilienmarktbericht des Gutachterausschusses für

@@ -28,9 +28,14 @@ if [ ! -x "$VENV/bin/python" ]; then
   echo
 fi
 
-echo "Berichte werden abgerufen. Bitte einen Moment warten …"
+echo "Berichte werden abgerufen und neue Werte eingelagert."
+echo "Bitte einen Moment warten …"
 echo
-"$VENV/bin/python" -u "$SKRIPT" --out "$ZIEL" --json "Auswertungen/marktdaten-wohnen.json"
+# --aktualisieren: nach neuen Berichten sehen und sie auswerten. Ohne den
+# Schalter liest das Skript nur die Datenbank -- das ist der Normalfall fuer
+# alle anderen, hier aber soll der Doppelklick wirklich nachschauen.
+"$VENV/bin/python" -u "$SKRIPT" --aktualisieren \
+  --out "$ZIEL" --json "Auswertungen/marktdaten-wohnen.json"
 status=$?
 
 echo

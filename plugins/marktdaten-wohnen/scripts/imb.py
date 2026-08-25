@@ -44,6 +44,38 @@ try:
 except ImportError:  # pragma: no cover
     sys.exit("Fehlt: requests. Installieren mit:  pip install -r requirements.txt")
 
+import ablage
+import db
+
+# Beschriftungen, die nicht aus den Zahlen folgen, sondern aus dem Bericht
+# stammen. Sie gehoeren nicht in die Datenbank -- sie sind Text, kein Faktum.
+INDEX_BASE = "1.7.2010 = 100"
+STANDARD_NOTE = (
+    "Normierte Standardwohnung, {qm} m², mittlere Lage, Stadtteilfaktor 1,0. "
+    "Altbau: Baujahr 1900, ohne Fahrstuhl und Einbauküche. "
+    "Neubau: Erstbezug, mit Fahrstuhl und Einbauküche."
+)
+
+# Welche Zusatzstädte es gibt. Frueher standen diese Schluessel an drei Stellen
+# im Code; jetzt an einer.
+ZUSATZSTAEDTE = ("wiesbaden", "kiel", "frankfurt")
+
+
+def _staedte_auswahl(spec: str) -> list[str]:
+    """„alle“, „keine“ oder eine Auswahl wie „wiesbaden,kiel“."""
+    if not spec or spec.lower() in {"keine", "none", ""}:
+        return []
+    if spec.lower() in {"alle", "all"}:
+        return list(ZUSATZSTAEDTE)
+    gewuenscht = {t.strip().lower() for t in spec.split(",") if t.strip()}
+    return [k for k in ZUSATZSTAEDTE if k in gewuenscht]
+
+
+def _staedte_modul():
+    """staedte.py wird spaet geladen -- es importiert seinerseits aus imb."""
+    import staedte
+    return staedte
+
 
 # ===========================================================================
 # Konfiguration: Quellen und Tabellen
@@ -1154,7 +1186,7 @@ def build_report(source: Source, years: Sequence[int], cache_dir: Path,
             with pdfplumber.open(io.BytesIO(path.read_bytes())) as pdf:
                 idx = _find_by_heading(pdf, INDEX_HEADING, data.pages.get("preis", 45) + 1)
                 report.index_series = parse_index_series(pdf.pages[idx])
-                report.index_base = "1.7.2010 = 100"
+                report.index_base = INDEX_BASE
         except (ExtractionError, IndexError, OSError):
             continue
         if report.index_series:
@@ -1180,11 +1212,7 @@ def build_report(source: Source, years: Sequence[int], cache_dir: Path,
                     try:
                         i = _find_by_heading(pdf, STANDARD_HEADING, 41)
                         report.standard_flat = parse_standard_flat(pdf.pages[i])
-                        report.standard_flat_note = (
-                            f"Normierte Standardwohnung, {STANDARD_SQM} m², mittlere Lage, "
-                            "Stadtteilfaktor 1,0. Altbau: Baujahr 1900, ohne Fahrstuhl und "
-                            "Einbauküche. Neubau: Erstbezug, mit Fahrstuhl und Einbauküche."
-                        )
+                        report.standard_flat_note = STANDARD_NOTE.format(qm=STANDARD_SQM)
                     except (ExtractionError, IndexError):
                         pass
         except OSError:
@@ -3133,8 +3161,7 @@ def collect_cities(spec: str, cache_dir: Path, refresh: bool = False) -> list:
         print("  Hinweis: staedte.py nicht gefunden, weitere Städte übersprungen")
         return []
 
-    gewuenscht = ({"wiesbaden", "kiel", "frankfurt"} if spec.lower() in {"alle", "all"}
-                  else {t.strip().lower() for t in spec.split(",") if t.strip()})
+    gewuenscht = set(_staedte_auswahl(spec))
     out = []
 
     if "wiesbaden" in gewuenscht:
@@ -3229,6 +3256,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-ocr", action="store_true",
                         help="Texterkennung nicht verwenden, auch wenn eine Tabelle "
                              "nur als Grafik vorliegt")
+    parser.add_argument("--datenbank", type=Path, metavar="DATEI",
+                        help=f"Andere Datenbank nutzen (Standard: {db.ARBEITS_DB})")
+    parser.add_argument("--aktualisieren", action="store_true",
+                        help="Berichte abrufen, neue auswerten und einlagern. "
+                             "Ohne diesen Schalter wird nur die Datenbank gelesen.")
+    parser.add_argument("--veroeffentlichen", action="store_true",
+                        help="Die Arbeitsdatenbank ins Plugin zurückschreiben, "
+                             "damit sie mit dem nächsten Push zu den Kollegen geht")
+    parser.add_argument("--bestand", action="store_true",
+                        help="Zeigen, was in der Datenbank steckt, und beenden")
+    parser.add_argument("--korrekturen", metavar="QUELLE", nargs="?", const="frankfurt",
+                        help="Nachträglich korrigierte Werte auflisten und beenden")
     parser.add_argument("--daten", type=Path, metavar="DATEI",
                         help="Eigene Quellendatei mit Zahlen Dritter "
                              f"(Standard: {USER_BROKER_FILE})")
@@ -3249,6 +3288,41 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"{'':10s} Tabellen: {tables}")
         return 0
 
+    con = db.oeffne(args.datenbank)
+    neu_aus_basis = db.uebernimm_basis(con)
+    if neu_aus_basis:
+        print(f"→ {neu_aus_basis} Werte aus der mitgelieferten Datenbank übernommen")
+
+    if args.bestand:
+        zeilen = db.bestand(con)
+        if not zeilen:
+            print("Die Datenbank ist leer. Mit --aktualisieren füllen.")
+            return 0
+        print(f"{'Quelle':<12}{'Werte':>8}{'Jahre':>14}{'Berichte':>10}")
+        for r in zeilen:
+            spanne = f"{r['von']}–{r['bis']}" if r["von"] != r["bis"] else str(r["von"])
+            print(f"{r['quelle']:<12}{r['fakten']:>8}{spanne:>14}{r['berichte']:>10}")
+        return 0
+
+    if args.korrekturen:
+        zeilen = db.korrekturen(con, args.korrekturen)
+        if not zeilen:
+            print(f"Keine nachträglichen Korrekturen für {args.korrekturen} gefunden.")
+            return 0
+        print(f"Nachträglich geänderte Werte — {args.korrekturen}\n")
+        for r in zeilen:
+            print(f"  {r['jahr']}  {r['gebiet'][:44]:<44} "
+                  f"{r['bericht_alt']}: {r['wert_alt']:>8.0f}  →  "
+                  f"{r['bericht_neu']}: {r['wert_neu']:>8.0f}")
+        print(f"\n{len(zeilen)} Werte wurden von einem späteren Bericht korrigiert.")
+        return 0
+
+    if args.veroeffentlichen:
+        anzahl = db.veroeffentliche(args.datenbank)
+        print(f"→ {anzahl} Werte nach {db.BASIS_DB} geschrieben.")
+        print("  Jetzt committen und pushen, dann haben die Kollegen sie.")
+        return 0
+
     source = SOURCES[args.source]
     if args.daten and not args.daten.is_file():
         print(f"Quellendatei nicht gefunden: {args.daten}", file=sys.stderr)
@@ -3264,9 +3338,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
         overrides[key] = int(value)
 
+    # Ob überhaupt ein Bericht angefasst werden muss. Der Normalfall ist nein:
+    # was einmal ausgelesen wurde, steht in der Datenbank. Nur wer ausdrücklich
+    # aktualisiert -- oder eine leere Datenbank hat -- liest PDFs.
+    hat_bestand = bool(con.execute(
+        "SELECT 1 FROM fakten WHERE quelle=? LIMIT 1", (source.key,)).fetchone())
+    aus_datenbank = hat_bestand and not args.aktualisieren and not args.pdf \
+        and not args.refresh
+
     # --- Jahrgänge bestimmen ---
     local_pdf = None
-    if args.pdf:
+    years: list[int] = []
+    if aus_datenbank:
+        print("→ Aus der Datenbank (kein Bericht wird geladen). "
+              "Neue Berichte holt „--aktualisieren“.")
+    elif args.pdf:
         if not args.pdf.is_file():
             print(f"Datei nicht gefunden: {args.pdf}", file=sys.stderr)
             return 2
@@ -3292,19 +3378,70 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             years = parse_years(spec, source, args.cache_dir, args.refresh)
         except DownloadError as exc:
-            print(f"\n{exc}\n", file=sys.stderr)
-            return 1
-        print(f"→ Jahrgänge: {', '.join(f'IMB{y}' for y in years)}")
+            if hat_bestand:
+                print(f"  Abruf fehlgeschlagen ({exc}) — nutze die Datenbank.")
+                aus_datenbank = True
+            else:
+                print(f"\n{exc}\n", file=sys.stderr)
+                return 1
+        if not aus_datenbank:
+            print(f"→ Jahrgänge: {', '.join(f'IMB{y}' for y in years)}")
 
     command = _command_line(args)
 
+    def einlagern(report, extra) -> None:
+        """Frisch Ausgelesenes in den Speicher. Danach braucht es kein PDF mehr."""
+        methoden = {j.data_year: ("ocr" if j.ocr_tables else "text")
+                    for j in report.years}
+        anzahl = ablage.lagere_ein(con, ablage.hamburg_fakten(report, methoden))
+        for jahrgang in report.years:
+            db.merke_bericht(
+                con, source.key, jahrgang.report_year,
+                titel=f"Immobilienmarktbericht {jahrgang.report_year}",
+                herausgeber=source.publisher, url=jahrgang.pdf_url,
+                meta={"pages": jahrgang.pages, "headings": jahrgang.headings,
+                      "ocrTables": jahrgang.ocr_tables},
+            )
+        for stadt in extra:
+            anzahl += ablage.lagere_ein(con, ablage.stadt_fakten(stadt))
+            grund = ablage.stadt_meta(stadt)
+            # Jeder Bericht traegt seine eigene Fundstelle -- Frankfurts
+            # Leittabelle wandert von Jahrgang zu Jahrgang um eine Seite.
+            jahrgaenge = stadt.years or [None]
+            for jahrgang in jahrgaenge:
+                eigen = dict(grund)
+                if jahrgang is not None:
+                    eigen["sourcePage"] = jahrgang.source_page
+                db.merke_bericht(
+                    con, stadt.key,
+                    jahrgang.report_year if jahrgang else stadt.report_year,
+                    herausgeber=stadt.publisher, url=stadt.pdf_url,
+                    meta={"stadt": eigen})
+        anzahl += ablage.lagere_ein(
+            con, ablage.dritte_fakten(load_broker_data(broker_file(args.daten))))
+        print(f"  {anzahl} Werte in der Datenbank")
+
     def build(live: bool = False) -> str:
-        report, notes = build_report(source, years, args.cache_dir, args.refresh,
-                                     overrides, local_pdf, not args.no_ocr,
-                                     args.daten)
-        for note in notes:
-            print(f"  Hinweis: {note}")
-        extra = collect_cities(args.cities, args.cache_dir, args.refresh)
+        if not aus_datenbank:
+            report, notes = build_report(source, years, args.cache_dir, args.refresh,
+                                         overrides, local_pdf, not args.no_ocr,
+                                         args.daten)
+            for note in notes:
+                print(f"  Hinweis: {note}")
+            extra = collect_cities(args.cities, args.cache_dir, args.refresh)
+            einlagern(report, extra)
+
+        # In beiden Fällen kommt die Ausgabe aus der Datenbank -- so ist
+        # ausgeschlossen, dass ein frischer Lauf etwas anderes zeigt als der
+        # nächste, der nur noch den Speicher liest.
+        report = ablage.lade_hamburg(con, source, sys.modules[__name__])
+        report.broker = load_broker_data(broker_file(args.daten))
+        report.index_base = INDEX_BASE
+        report.standard_flat_note = STANDARD_NOTE.format(qm=STANDARD_SQM)
+        gewuenscht = _staedte_auswahl(args.cities)
+        extra = [stadt for stadt in
+                 (ablage.lade_stadt(con, key, _staedte_modul()) for key in gewuenscht)
+                 if stadt is not None]
         build.report = report                                    # type: ignore[attr-defined]
         build.cities = extra                                     # type: ignore[attr-defined]
         return render_html(report, live=live, command=command, cities=extra)

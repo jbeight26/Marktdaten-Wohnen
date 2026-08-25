@@ -22,6 +22,11 @@ Die Auswertung ist deterministisch: derselbe Bericht ergibt immer dieselben
 Zahlen. Kein Sprachmodell schätzt hier etwas — jede Zahl stammt aus einer
 benannten PDF-Seite.
 
+**Die Zahlen stehen in einer Datenbank, nicht in den PDFs.** Was einmal
+ausgelesen wurde, bleibt gespeichert. Der Normalfall ist deshalb: keine
+Berichte laden, keine Wartezeit, kein Internet nötig. Nur `--aktualisieren`
+sieht nach neuen Berichten und wertet aus, was noch fehlt.
+
 ## Ablauf
 
 ### 1. Umgebung sicherstellen
@@ -56,15 +61,23 @@ Wähle die Parameter nach dem, was gefragt wurde:
 | alle verfügbaren Jahrgänge (Standard) | keiner |
 | bestimmter Jahrgang | `--year 2025` |
 | Zeitraum | `--years 2023-2025` |
+| nach neuen Berichten sehen | `--aktualisieren` |
 | Berichte neu laden statt Zwischenspeicher | `--refresh` |
+| zeigen, was gespeichert ist | `--bestand` |
+| nachträgliche Korrekturen auflisten | `--korrekturen frankfurt` |
 | nur bestimmte Städte | `--cities wiesbaden` oder `--cities keine` |
 | Frankfurt allein | `--cities frankfurt` |
 | andere Leitquelle | `--source <name>` |
 | eigene Quellendatei | `--daten <pfad>` |
 
-Der erste Lauf auf einem Rechner lädt rund 70 MB PDF und dauert etwa anderthalb
-Minuten. Danach greift ein Zwischenspeicher und es geht in Sekunden. Kündige die
-Wartezeit an, bevor du den Befehl startest.
+Ohne `--aktualisieren` ist der Lauf in wenigen Sekunden fertig und lädt nichts —
+die Zahlen kommen aus der mitgelieferten Datenbank. Nur mit `--aktualisieren`
+werden Berichte abgerufen; das dauert beim ersten Mal rund anderthalb Minuten
+und lädt etwa 70 MB. Kündige die Wartezeit dann an.
+
+Nutze `--aktualisieren` nur, wenn jemand ausdrücklich nach neuen Berichten
+fragt oder ein Jahrgang fehlt. Für „zeig mir die Kaufpreise“ genügt der
+normale Lauf.
 
 ### 3. Ergebnis liefern
 
@@ -113,13 +126,13 @@ Kurzfassung:
 - **Wiesbadens Bezirkswerte sind gerechnet**, nicht abgelesen: gewichtet nach
   Kauffällen aus den Zellen. Der Bericht gewichtet nach Fläche und nennt deshalb
   leicht andere Gesamtwerte. Sage das, wenn jemand Wiesbadener Zahlen zitiert.
-- **Frankfurt braucht von Hand abgelegte Berichte.** Die Stadt sperrt
-  automatisierte Downloads mit einer Cloudflare-Prüfung; das Werkzeug versucht
-  deshalb gar keinen Abruf. Es liest, was als `FFM<Jahr>.pdf` im
-  Zwischenspeicher liegt (`~/.cache/immobilienmarktberichte/`). Fehlt dort
-  alles, wird Frankfurt übersprungen — sage dann, dass der Bericht von der
-  Seite des Frankfurter Gutachterausschusses geladen und dort abgelegt werden
-  muss. `--pdf` ist dafür **nicht** der Weg: das gilt nur für die Leitquelle.
+- **Frankfurt steckt in der Datenbank, nicht in abrufbaren Berichten.** Die
+  Stadt sperrt automatisierte Downloads, deshalb wurden ihre Berichte einmal
+  von Hand ausgewertet; seither kommen die Zahlen aus dem Speicher wie bei
+  allen anderen Städten. Nur wer einen **neuen** Frankfurter Jahrgang
+  einlagern will, muss das PDF als `FFM<Jahr>.pdf` nach
+  `~/.cache/immobilienmarktberichte/` legen und `--aktualisieren` laufen
+  lassen.
 - **Frankfurt gliedert nach Grundbuchbezirken**, nicht nach Stadtteilen — 15
   Gruppen, deren Ortsteilnamen in Klammern stehen. Die Gebietswerte sind aus
   den Baujahrszellen nach Kauffällen **gerechnet**, nicht abgelesen. Sage das

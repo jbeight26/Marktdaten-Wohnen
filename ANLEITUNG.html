@@ -299,10 +299,11 @@ footer {
       </li>
     </ol>
     <div class="note">
-      <h3>Der erste Aufruf dauert</h3>
-      <p>Beim ersten Mal richtet sich das Plugin ein und lädt rund 70 MB an
-         Berichten — zusammen etwa zwei Minuten. Danach ist jede Abfrage in
-         wenigen Sekunden fertig, weil die Berichte auf deinem Rechner bleiben.</p>
+      <h3>Der erste Aufruf dauert kurz</h3>
+      <p>Beim ersten Mal richtet sich das Plugin ein; das dauert etwa eine
+         Minute. Die Zahlen sind schon dabei — sie liegen in einer
+         mitgelieferten Datenbank. Es wird nichts heruntergeladen, und jede
+         Abfrage ist in Sekunden fertig, auch ohne Internet.</p>
     </div>
   </section>
 
@@ -385,13 +386,10 @@ footer {
       <li><b>Wiesbadens Bezirkswerte sind gerechnet</b>, nicht abgelesen: nach
         Kauffällen gewichtet aus den Zellen des Berichts. Der Bericht selbst
         gewichtet nach Fläche und nennt deshalb leicht andere Gesamtwerte.</li>
-      <li><b>Frankfurt erscheint nur, wenn die Berichte abgelegt sind.</b> Die
-        Stadt sperrt automatisierte Downloads, deshalb lädt das Werkzeug dort
-        nichts. Es liest, was unter
-        <code>~/.cache/immobilienmarktberichte/</code> als
-        <code>FFM&lt;Jahr&gt;.pdf</code> liegt. Die Berichte sind <b>nicht</b>
-        Teil des Plugins — ohne sie fehlt der Frankfurt-Reiter, alles andere
-        funktioniert normal.</li>
+      <li><b>Frankfurt ist vollständig dabei.</b> Die Stadt sperrt zwar
+        automatisierte Downloads, aber ihre Berichte wurden einmal ausgewertet
+        und liegen seither in der mitgelieferten Datenbank — wie alle anderen
+        Zahlen auch. Du musst nichts ablegen.</li>
       <li><b>Frankfurt gliedert nach Grundbuchbezirken</b>, nicht nach
         Stadtteilen. 15 Gruppen, die Ortsteilnamen stehen in Klammern —
         „Nordend, Ostend“ ist ein Gebiet, nicht zwei. Diese Werte sind aus den

@@ -32,9 +32,29 @@ noch Internet.
 Python 3.10 oder neuer. Alles Weitere richtet das Plugin beim ersten Aufruf
 selbst ein; das dauert einmalig etwa eine Minute.
 
-Der erste Lauf lädt rund 70 MB an PDF-Berichten und dauert etwa anderthalb
-Minuten. Danach greift ein Zwischenspeicher unter `~/.cache/immobilienmarktberichte`
-und die Auswertung ist in Sekunden fertig.
+**Berichte werden nicht mehr geladen.** Die Zahlen liegen in einer
+mitgelieferten Datenbank — der erste Lauf ist in Sekunden fertig, ohne Internet
+und ohne 70 MB Download. Nur wer nach neuen Berichten sehen will, ruft sie mit
+`--aktualisieren` ab.
+
+## Wie die Datenbank arbeitet
+
+Jeder Bericht wird einmal ausgelesen und eingelagert. Wiedererkannt wird er am
+Hash seiner Datei: veröffentlicht ein Gutachterausschuss dieselbe Ausgabe
+korrigiert neu, wird sie erneut gelesen, sonst nicht.
+
+Jeder Wert trägt mit, aus welchem Bericht er stammt. Ändert ein späterer
+Bericht einen alten Jahrgang — was regelmäßig passiert —, stehen beide Werte
+nebeneinander. Angezeigt wird der neuere; `--korrekturen <stadt>` zeigt, was
+sich bewegt hat.
+
+| Befehl | Wirkung |
+|---|---|
+| (ohne) | Seite aus der Datenbank bauen |
+| `--aktualisieren` | nach neuen Berichten sehen und einlagern |
+| `--bestand` | zeigen, was gespeichert ist |
+| `--korrekturen <stadt>` | nachträglich geänderte Werte auflisten |
+| `--veroeffentlichen` | eigene Datenbank ins Plugin zurückschreiben |
 
 ## Datengrundlage
 
@@ -52,18 +72,13 @@ Abgedeckt sind drei Städte:
 
 Oben in der Seite schaltet man zwischen den Städten um.
 
-**Frankfurt braucht einen Handgriff.** Die Stadt sperrt automatisierte Downloads
-mit einer Cloudflare-Prüfung, deshalb versucht das Werkzeug dort gar keinen
-Abruf. Es liest, was von Hand abgelegt wurde:
-
-```
-~/.cache/immobilienmarktberichte/FFM<Jahr>.pdf
-```
-
-Die Berichte lädt man einmalig beim Frankfurter Gutachterausschuss und legt sie
-dort ab — vier Berichte (2023–2026) ergeben die Reihe 2021–2025, weil jeder zwei
-Jahrgänge führt. Liegt nichts da, wird Frankfurt übersprungen; die anderen Städte
-funktionieren unverändert. **Die Berichte werden nicht mitgeliefert.**
+**Frankfurt ist vollständig enthalten**, obwohl die Stadt automatisierte
+Downloads sperrt: Ihre Berichte wurden einmal von Hand ausgewertet und liegen
+seither in der Datenbank wie alle anderen Zahlen auch. Für einen **neuen**
+Frankfurter Jahrgang legt man das PDF als
+`~/.cache/immobilienmarktberichte/FFM<Jahr>.pdf` ab und ruft `--aktualisieren`
+auf. Vier Berichte (2023–2026) ergeben die Reihe 2021–2025, weil jeder zwei
+Jahrgänge führt.
 
 Wichtige Grenzen: Für Neubau gibt es keine Werte je Stadtteil, für
 Mehrfamilienhäuser keine Quadratmeterpreise je Stadtteil, und Stadtteile mit

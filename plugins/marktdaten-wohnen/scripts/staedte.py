@@ -578,8 +578,12 @@ def extract_frankfurt(cache_dir) -> CityDataset:
         raise DownloadError(
             f"kein Bericht abgelegt — FFM<Jahr>.pdf nach {cache_dir} legen")
 
-    jahrgaenge: dict[int, CityYear] = {}
-    for report_year in sorted(berichte):              # alt zuerst, neu gewinnt
+    # Jede Kombination aus Bericht und Preisjahr bleibt erhalten, auch wo zwei
+    # Berichte dasselbe Jahr führen. Die Auflösung -- der neuere gewinnt --
+    # passiert erst bei der Anzeige. Nur so bleibt nachweisbar, dass der
+    # Gutachterausschuss alte Jahrgänge nachträglich korrigiert.
+    jahrgaenge: dict[tuple[int, int], CityYear] = {}
+    for report_year in sorted(berichte):
         try:
             with pdfplumber.open(io.BytesIO(berichte[report_year].read_bytes())) as pdf:
                 seite = _fr_seite(pdf)
@@ -588,12 +592,14 @@ def extract_frankfurt(cache_dir) -> CityDataset:
             print(f"(Bericht {report_year} übersprungen: {exc}) ", end="", flush=True)
             continue
         for jahr, gebiete in daten.items():
-            jahrgaenge[jahr] = _fr_jahrgang(gebiete, jahr, report_year, seite + 1)
+            jahrgaenge[(jahr, report_year)] = _fr_jahrgang(
+                gebiete, jahr, report_year, seite + 1)
 
     if not jahrgaenge:
         raise ExtractionError("kein Jahrgang auswertbar")
 
-    reihe = [jahrgaenge[j] for j in sorted(jahrgaenge)]
+    # Nach Preisjahr, dann nach Bericht -- der jüngste Eintrag steht am Ende.
+    reihe = [jahrgaenge[k] for k in sorted(jahrgaenge)]
     neueste = reihe[-1]
     return CityDataset(
         key="frankfurt",

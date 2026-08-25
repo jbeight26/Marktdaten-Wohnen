@@ -39,6 +39,46 @@ nach Baujahr × Lagequalität, Standardwohnung Bestand gegen Neubau.
 
 ## Getroffene Entscheidungen
 
+### Der Speicher
+
+**Einmal auslesen, dauerhaft behalten.** Vorher wurde bei jedem Lauf jedes PDF
+neu geparst. Jetzt liegen die Zahlen in SQLite; die Berichte werden nur noch
+angefasst, wenn `--aktualisieren` läuft. Das löst vier Dinge auf einmal: kein
+70-MB-Download beim Einrichten, kein Internet nötig, Frankfurt ohne von Hand
+abgelegte PDFs — und alte Jahrgänge bleiben erhalten, auch wenn Hamburg sie von
+daten-hamburg.de nimmt.
+
+**SQLite, nicht Excel.** `sqlite3` steckt in Pythons Standardbibliothek; das
+Plugin bleibt ohne zusätzliche Abhängigkeit installierbar. Excel wäre als
+Wahrheitsquelle auch das falsche Format — als Export jederzeit machbar.
+
+**Eine Zeile ist ein Faktum.** Ein einziges Schema trägt Hamburgs
+Stadtteilpreise, Wiesbadens Segmente, Kiels Weiterverkäufe, Frankfurts
+Grundbuchbezirke und die Zahlen Dritter. Eine neue Quelle braucht kein neues
+Schema, nur einen Leser, der Fakten dieser Form liefert.
+
+**Die Berichtsnummer steht im Schlüssel.** Damit ergibt derselbe Wert aus zwei
+Berichten zwei Zeilen statt einer. Der Grund ist nicht Ordnungsliebe: die
+Gutachterausschüsse **korrigieren alte Jahrgänge nachträglich**. Für Frankfurt
+2024 weichen elf von fünfzehn Gebieten zwischen Bericht 2025 und 2026 ab, für
+2023 neun von fünfzehn. Angezeigt wird der neuere Wert, `--korrekturen` zeigt
+die Bewegung. Vorher wurde die alte Zahl still überschrieben.
+
+**Zwei Dateien, kein Verdecken.** Die mitgelieferte Datenbank im Plugin ist der
+Stand für alle; die Arbeitskopie unter `~/.local/share/marktdaten-wohnen`
+überlebt Aktualisierungen. Bei jedem Start wandert Fehlendes aus der ersten in
+die zweite — `INSERT OR IGNORE`, eigene Einträge bleiben unangetastet. Das ist
+die Antwort auf das Verdeckungsproblem, das bei `quellen.json` noch offen war.
+
+**Die Ausgabe kommt immer aus der Datenbank**, auch direkt nach einem
+Auswertungslauf. Sonst könnte ein frischer Lauf etwas anderes zeigen als der
+nächste. Belegt: nach dem Umbau war die erzeugte JSON-Datei Zeichen für Zeichen
+identisch mit der vorherigen.
+
+**Die Leser blieben unangetastet**, und die 1.300 Zeilen Darstellungscode
+ebenso. Der Umbau sitzt in zwei neuen Dateien -- `db.py` für den Speicher,
+`ablage.py` für den Weg hinein und heraus.
+
 ### Aufbau
 
 **Ein Ordner statt zwei.** Vorher lagen Projektordner und Repository nebeneinander,
@@ -199,6 +239,10 @@ Nicht-Hamburg-Eintrag still zu einer falschen Zahl geworden.
 Kauffälle-Seite rund fünf kleine Zahlen; Summe 5.479 statt ausgewiesener 5.543.
 Die Preise sind davon nicht betroffen. Für 2025 fehlen deshalb die Fallzahlen je
 Stadtteil — im Tooltip bleibt das Feld leer.
+
+**Frankfurt braucht keine PDFs mehr.** Die Berichte wurden einmal ausgewertet;
+seither kommen die Zahlen aus der Datenbank wie bei jeder anderen Stadt. Nur
+ein *neuer* Jahrgang verlangt noch das PDF im Zwischenspeicher.
 
 **Frankfurt ist drin.** Die lange offene Frage ist beantwortet: der Bericht
 führt Gebietstabellen, in Abschnitt 3.7.3 „Mittlere Preise für
