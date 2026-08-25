@@ -1,62 +1,75 @@
-# eight estates — Marktplatz für Claude-Plugins
+# Marktdaten Wohnen
 
-Interne Werkzeuge für die Arbeit mit Immobilienmarktdaten.
+Amtliche Immobilienmarktberichte der Gutachterausschüsse auswerten und als
+interaktive Seite darstellen. Hamburg, Wiesbaden und Kiel.
 
-## Einmalig einrichten
+Dieser Ordner ist zugleich das Claude-Plugin, der Marktplatz zum Verteilen und
+das Arbeitswerkzeug — alles an einer Stelle, jede Datei nur einmal.
 
-In Claude Code:
+## Ohne Kommandozeile benutzen
+
+| Datei | Wirkung |
+|---|---|
+| `Auswertung erstellen.command` | holt die Berichte, baut die Auswertung, öffnet sie |
+| `Interaktiv starten.command` | startet den lokalen Server; dort funktioniert der Knopf „Neue Abfrage" |
+| `ANLEITUNG.html` | Anleitung zum Weitergeben an Kollegen |
+
+Ergebnisse landen in `Auswertungen/`. Die HTML-Datei ist eigenständig und lässt
+sich weitergeben — sie braucht weder Server noch Internet.
+
+## Als Plugin verteilen
 
 ```
-/plugin marketplace add <ORG>/<REPO>
+/plugin marketplace add jbeight26/Marktdaten-Wohnen
 /plugin install marktdaten-wohnen@eight-estates
 ```
 
-`<ORG>/<REPO>` durch die Adresse dieses Repositories ersetzen. Liegt es nicht auf
-GitHub, die vollständige URL angeben:
+Aktualisieren nach einer neuen Fassung — `install` genügt **nicht**:
 
 ```
-/plugin marketplace add https://gitlab.example.com/team/marktdaten-wohnen-marketplace.git
+claude plugin marketplace update eight-estates
+claude plugin update marktdaten-wohnen@eight-estates
 ```
 
-Meldet die Installation `Run /reload-plugins to activate.`, diesen Befehl noch
-ausführen.
+Danach Claude neu starten und mit `claude plugin list` prüfen, ob die Version
+stimmt.
 
-## Benutzen
-
-Danach genügt eine normale Bitte an Claude:
-
-- „Starte eine neue Abfrage der Marktdaten"
-- „Zeig mir die Kaufpreise nach Stadtteil"
-- „Was kosten Eigentumswohnungen in Eppendorf?"
-- „Wie haben sich die Preise seit 2021 entwickelt?"
-
-## Aktualisieren
-
-Neue Fassungen kommen nicht von allein an. Nach einer Änderung im Repository:
+## Aufbau
 
 ```
-/plugin marketplace update eight-estates
+.claude-plugin/marketplace.json      Katalog für die Verteilung
+plugins/marktdaten-wohnen/
+  .claude-plugin/plugin.json         Beschreibung des Plugins
+  skills/marktdaten-wohnen/          Anweisung für Claude, samt Datenlage
+  scripts/                           imb.py, staedte.py, ocr.py, maklerdaten.json
+Auswertungen/                        erzeugte Dateien (nicht im Repository)
 ```
 
-## Enthaltene Plugins
+## Abgedeckte Städte
 
-| Plugin | Zweck |
-|---|---|
-| `marktdaten-wohnen` | Immobilienmarktberichte des Gutachterausschusses auswerten und darstellen |
+| Stadt | Gebiete | Segmente | Preisjahre |
+|---|---|---|---|
+| Hamburg | 104 Stadtteile | Bestand (ohne Neubau) | 2021–2025 |
+| Wiesbaden | 26 Stadtbezirke | Neubau, Umwandlung, Weiterverkauf | 2025 |
+| Kiel | 26 Stadtteile | Weiterverkauf | 2025 |
 
-## Voraussetzungen
+Frankfurt fehlt: die Stadt sperrt automatisierte Downloads mit einer
+Cloudflare-Prüfung.
 
-Python 3.10 oder neuer. Alles Weitere richtet das Plugin beim ersten Aufruf
-selbst ein.
+## Hamburg 2025 kommt aus einer Texterkennung
 
-## Eine neue Fassung veröffentlichen
+Der Bericht 2026 setzt seine Stadtteiltabellen als Grafik — 32 der 214 Seiten
+sind in Vektorkonturen umgewandelt. Für ein Programm ist das ein Bild.
 
-1. Änderungen unter `plugins/marktdaten-wohnen/` vornehmen
-2. Versionsnummer in **beiden** Dateien erhöhen:
-   `plugins/marktdaten-wohnen/.claude-plugin/plugin.json` und
-   `.claude-plugin/marketplace.json`
-3. Committen und pushen
-4. Kollegen informieren, dass sie `/plugin marketplace update eight-estates`
-   ausführen sollen
+Das Werkzeug rendert die Seite und liest sie mit der Texterkennung von macOS,
+**mit beiden Erkennungsmodellen**. Nur Werte, in denen beide übereinstimmen,
+werden übernommen; bei Widerspruch bricht es lieber ab. Alle 104 Stadtteilnamen
+wurden gefunden, 76 Werte doppelt bestätigt, und eine Stichprobe von 19 Werten
+wurde zusätzlich von Hand am Bild gegengeprüft — ohne Abweichung.
 
-Weichen die beiden Versionsnummern voneinander ab, warnt die Prüfung.
+Die Auswertung kennzeichnet diesen Jahrgang sichtbar. Verloren geht dabei die
+Unterscheidung zwischen „*" (unter drei Kauffällen) und „–" (kein Wert).
+
+Ohne die Zusatzpakete (`requirements-ocr.txt`, nur macOS) läuft alles Übrige
+unverändert; dann fehlt lediglich Hamburg 2025. Mit `--no-ocr` lässt sich die
+Texterkennung abschalten.

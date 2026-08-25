@@ -1,0 +1,2 @@
+ocrmac>=1.0
+pypdfium2>=4.0

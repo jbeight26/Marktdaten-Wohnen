@@ -223,6 +223,8 @@ class YearData:
     quality: dict[str, dict[str, dict[str, int | None]]] = field(default_factory=dict)
     # Warum eine Tabelle fehlt -- wichtig, wenn der Jahrgang sonst brauchbar ist
     failures: dict[str, str] = field(default_factory=dict)
+    # Tabellen, die nur per Texterkennung lesbar waren
+    ocr_tables: dict[str, dict] = field(default_factory=dict)
 
     @property
     def priced(self) -> dict[str, AreaValues]:
@@ -893,9 +895,53 @@ def _read_table(pdf, table: Table, forced: int | None, remembered: int | None,
     return page_index, entries, aggregate, heading
 
 
+def _ocr_rettung(pdf_path: Path, pdf, table: Table, index: dict, source: Source,
+                 report_year: int, data: "YearData") -> bool:
+    """Letzter Versuch, wenn die Tabelle als Grafik gesetzt ist.
+
+    Die Seite lässt sich nicht über Text finden -- genommen wird die Seite, die
+    in den Nachbarjahrgängen die Tabelle trug, und per Texterkennung bestätigt.
+    """
+    try:
+        import ocr as ocr_modul
+    except ImportError:
+        return False
+    if not ocr_modul.VERFUEGBAR:
+        return False
+
+    hint = _hint_from_index(index, source, report_year, table)
+    if not hint:
+        return False
+
+    for kandidat in (hint, hint - 1, hint + 1):
+        try:
+            werte, gesamt, bericht = ocr_modul.lies_gebietstabelle(
+                pdf_path, kandidat - 1, spalten=3,
+                aggregate_muster=source.table(table.key).aggregate_re.strip("^$"),
+                ueberschrift_muster=table.heading_re,
+            )
+        except (ocr_modul.OCRUneindeutig, ocr_modul.OCRNichtVerfuegbar, Exception):
+            continue
+
+        if len(werte) < 20:
+            continue
+        for name, wert in werte.items():
+            eintrag = data.areas.setdefault(name, AreaValues())
+            eintrag.price = wert
+            eintrag.price_marker = None if wert is not None else "*"
+        data.totals[table.key] = gesamt
+        data.pages[table.key] = kandidat
+        data.data_year = report_year - 1
+        data.ocr_tables[table.key] = bericht
+        print(f"per Texterkennung von S.{kandidat} … ", end="", flush=True)
+        return True
+    return False
+
+
 def extract_year(pdf_path: Path, source: Source, report_year: int,
                  cache_dir: Path | None = None,
-                 page_overrides: dict[str, int] | None = None) -> YearData:
+                 page_overrides: dict[str, int] | None = None,
+                 use_ocr: bool = True) -> YearData:
     """Liest alle konfigurierten Tabellen eines Jahrgangs aus einer PDF.
 
     Die Datei wird am Stück in den Speicher gelesen: auf Cloud-Laufwerken
@@ -917,7 +963,13 @@ def extract_year(pdf_path: Path, source: Source, report_year: int,
             remembered = slot.get(table.key)
 
             if forced is None and table.key in slot and remembered is None:
-                # Aus einem früheren Lauf als "nicht enthalten" gemerkt.
+                # Aus einem früheren Lauf als "nicht enthalten" gemerkt. Für die
+                # Leittabelle lohnt trotzdem der Versuch per Texterkennung -- der
+                # Negativeintrag kann aus einem Lauf ohne OCR stammen.
+                if table.key == PRICE_TABLE.key and use_ocr:
+                    if _ocr_rettung(pdf_path, pdf, table, index, source,
+                                    report_year, data):
+                        continue
                 failures[table.key] = "laut Index nicht enthalten"
                 if table.key == PRICE_TABLE.key:
                     break
@@ -929,6 +981,12 @@ def extract_year(pdf_path: Path, source: Source, report_year: int,
                 )
             except (ExtractionError, IndexError) as exc:
                 failures[table.key] = str(exc)
+                if table.key == PRICE_TABLE.key and use_ocr:
+                    gerettet = _ocr_rettung(pdf_path, pdf, table, index, source,
+                                            report_year, data)
+                    if gerettet:
+                        failures.pop(table.key, None)
+                        continue
                 if forced is None:
                     slot[table.key] = None
                 if table.key == PRICE_TABLE.key:
@@ -998,7 +1056,8 @@ def extract_year(pdf_path: Path, source: Source, report_year: int,
 def build_report(source: Source, years: Sequence[int], cache_dir: Path,
                  refresh: bool = False,
                  page_overrides: dict[str, int] | None = None,
-                 local_pdf: Path | None = None) -> tuple[Report, list[str]]:
+                 local_pdf: Path | None = None,
+                 use_ocr: bool = True) -> tuple[Report, list[str]]:
     """Baut den Gesamtbericht über alle angeforderten Jahrgänge."""
     report = Report(
         source_key=source.key,
@@ -1024,7 +1083,7 @@ def build_report(source: Source, years: Sequence[int], cache_dir: Path,
         # eine Minute dauern, und ein stummes Fenster wirkt wie ein Absturz.
         print(f"  IMB{year} … ", end="", flush=True)
         try:
-            data = extract_year(path, source, year, cache_dir, page_overrides)
+            data = extract_year(path, source, year, cache_dir, page_overrides, use_ocr)
         except ExtractionError as exc:
             print("übersprungen")
             notes.append(f"{year}: {exc}")
@@ -1542,6 +1601,18 @@ APP_JS = r"""
 
   function renderSegmentNote() {
     var note = document.getElementById('segment-note');
+    // Aus Texterkennung gewonnene Jahrgänge müssen als solche erkennbar sein.
+    var y = state.view === 'span' ? null : yearOf(state.year);
+    if (y && y.ocrTables && y.ocrTables.preis) {
+      var b = y.ocrTables.preis;
+      note.hidden = false;
+      note.textContent = 'Die Werte für ' + y.dataYear + ' stammen aus einer '
+        + 'Texterkennung: der Bericht setzt diese Tabelle als Grafik. '
+        + b.werte + ' Werte, jeder von zwei unabhängigen Erkennungsmodellen '
+        + 'übereinstimmend gelesen. Die Unterscheidung zwischen „*" (unter drei '
+        + 'Kauffällen) und „–" (kein Wert) geht dabei verloren.';
+      return;
+    }
     if (state.objekt === 'mfh') {
       note.hidden = false;
       note.textContent = 'Mehrfamilienhäuser: der Bericht weist je ' + DATA.areaLabel
@@ -2300,6 +2371,7 @@ def report_payload(report: Report, live: bool, command: str) -> dict:
                 "total": y.totals.get(PRICE_TABLE.key),
                 "totalCount": y.totals.get(SALES_TABLE.key),
                 "quality": y.quality,
+                "ocrTables": y.ocr_tables,
                 "areas": {
                     name: {
                         "p": v.price, "m": v.price_marker,
@@ -2738,6 +2810,9 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Erneut herunterladen und Seitenindex verwerfen")
     parser.add_argument("--list-sources", action="store_true",
                         help="Verfügbare Quellen anzeigen und beenden")
+    parser.add_argument("--no-ocr", action="store_true",
+                        help="Texterkennung nicht verwenden, auch wenn eine Tabelle "
+                             "nur als Grafik vorliegt")
     parser.add_argument("--cities", default="alle",
                         help="Weitere Städte: „alle“ (Standard), „keine“ oder "
                              "eine Auswahl wie „wiesbaden,kiel“")
@@ -2797,7 +2872,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     def build(live: bool = False) -> str:
         report, notes = build_report(source, years, args.cache_dir, args.refresh,
-                                     overrides, local_pdf)
+                                     overrides, local_pdf, not args.no_ocr)
         for note in notes:
             print(f"  Hinweis: {note}")
         extra = collect_cities(args.cities, args.cache_dir, args.refresh)
