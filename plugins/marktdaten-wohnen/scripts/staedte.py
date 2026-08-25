@@ -80,6 +80,12 @@ class CityDataset:
     notes: list[str] = field(default_factory=list)
     # Alle Preisjahre, aeltestes zuerst. Leer bei einjaehrigen Staedten.
     years: list[CityYear] = field(default_factory=list)
+    # Preisentwicklung: Linienbeschriftung -> [(Jahr, €/m²), ...]. Was die
+    # Linien bedeuten, entscheidet der Bericht: Wiesbaden trennt Neubau und
+    # Wiederverkauf, Kiel Baujahrsklassen, Frankfurt seine Segmente.
+    verlauf: dict[str, list[tuple[int, int]]] = field(default_factory=dict)
+    verlauf_titel: str = ""
+    verlauf_note: str = ""
 
 
 # ===========================================================================
@@ -190,6 +196,12 @@ def _wi_find_segment(pdf, pattern: str) -> list[int]:
     return pages
 
 
+def _wi_reihen_labels() -> dict[str, str]:
+    return {"neubau": "Neubau (Erstverkauf)",
+            "weiterverkauf": "Weiterverkauf (Bestand)",
+            "alle": "Alle Eigentumswohnungen"}
+
+
 def extract_wiesbaden(pdf_path, report_year: int) -> CityDataset:
     buffer = io.BytesIO(pdf_path.read_bytes())
     data = CityDataset(
@@ -263,6 +275,21 @@ def extract_wiesbaden(pdf_path, report_year: int) -> CityDataset:
 
     if not data.segments:
         raise ExtractionError("Wiesbaden: keine Segmente auswertbar.")
+
+    # Abschnitt 5.6 führt Preisreihen zurück bis 2007 -- die längste Reihe im
+    # ganzen Werkzeug, und die einzige, die Neubau und Bestand nebeneinander
+    # über zwei Jahrzehnte zeigt.
+    buffer.seek(0)
+    with pdfplumber.open(buffer) as pdf:
+        reihen = extract_wiesbaden_reihen(pdf)
+    if reihen:
+        label = _wi_reihen_labels()
+        data.verlauf = {label.get(k, k): v for k, v in reihen.items()}
+        data.verlauf_titel = "Preisentwicklung seit 2007"
+        data.verlauf_note = (
+            "Abschnitt 5.6 „Preisreihen“. Die Werte stehen im Bericht nur als "
+            "Diagrammbeschriftung; abgelesen wurden die Datenpunkte, nicht die "
+            "Achsenbeschriftung.")
     return data
 
 
@@ -399,6 +426,16 @@ def extract_kiel(pdf_path, report_year: int, pdf_url: str = "") -> CityDataset:
         "Kiel weist je Stadtteil zusätzlich das mittlere Baujahr und die mittlere "
         "Wohnfläche aus; beides steht im Tooltip."
     )
+
+    with pdfplumber.open(io.BytesIO(pdf_path.read_bytes())) as pdf:
+        klassen = extract_kiel_baujahre(pdf)
+    if klassen:
+        data.verlauf = {name: [(r["jahr"], r["preis"]) for r in reihe]
+                        for name, reihe in klassen.items()}
+        data.verlauf_titel = "Weiterverkauf nach Baujahresklassen"
+        data.verlauf_note = (
+            "Abschnitt 7.1.3, Wohnfläche 60–100 m², ohne Stadtteil Düsternbrook, "
+            "ohne Neubauten. Nur Weiterverkäufe.")
     return data
 
 
@@ -601,6 +638,18 @@ def extract_frankfurt(cache_dir) -> CityDataset:
     # Nach Preisjahr, dann nach Bericht -- der jüngste Eintrag steht am Ende.
     reihe = [jahrgaenge[k] for k in sorted(jahrgaenge)]
     neueste = reihe[-1]
+
+    # Der Verlauf entsteht hier aus den Segmenten selbst -- ein eigenes
+    # Diagramm führt der Frankfurter Bericht nicht.
+    verlauf: dict[str, list[tuple[int, int]]] = {}
+    gesehen: dict[str, dict[int, int]] = {}
+    for jahrgang in reihe:                      # alt zuerst, neuer gewinnt
+        for seg in jahrgang.segments:
+            if seg.total is not None:
+                gesehen.setdefault(seg.label, {})[jahrgang.data_year] = seg.total
+    for label, punkte in gesehen.items():
+        if len(punkte) > 1:
+            verlauf[label] = sorted(punkte.items())
     return CityDataset(
         key="frankfurt",
         city="Frankfurt am Main",
@@ -612,6 +661,11 @@ def extract_frankfurt(cache_dir) -> CityDataset:
         source_page=neueste.source_page,
         segments=neueste.segments,
         years=reihe,
+        verlauf=verlauf,
+        verlauf_titel="Preisentwicklung nach Segment" if verlauf else "",
+        verlauf_note=("Aus den Gebietswerten gewichtet gerechnet. Bei "
+                      "Überschneidung zweier Berichte gilt der neuere."
+                      if verlauf else ""),
         notes=[
             "Frankfurt gliedert nach Grundbuchbezirken, nicht nach Stadtteilen; "
             "die Namen in Klammern sind die Ortsteile darin.",
@@ -635,3 +689,152 @@ def find_frankfurt(cache_dir) -> dict[int, "Path"]:
         if jahr and is_pdf(pfad):
             treffer[int(jahr.group(1))] = pfad
     return treffer
+
+
+# ---------------------------------------------------------------------------
+# Wiesbaden: Preisreihen aus Abschnitt 5.6
+# ---------------------------------------------------------------------------
+#
+# Die Reihen stehen nur als Diagramm im Bericht -- aber mit beschrifteten
+# Datenpunkten. Die lassen sich sauber von den Achsenticks trennen: Werte
+# tragen einen Tausenderpunkt ("7.553"), Ticks nicht ("7800"). Ein Glücksfall,
+# der sonst OCR erfordert hätte.
+
+WI_REIHE_WERT = re.compile(r"^\d\.\d{3}$")
+WI_REIHEN = (
+    ("neubau", r"Preisentwicklung\s+der\s+Neubaueigentumswohnungen"),
+    ("weiterverkauf", r"Preisentwicklung\s+von\s+Wohnungen\s+im\s+Wiederverkauf"),
+    ("alle", r"Preisentwicklung\s+aller\s+Eigentumswohnungen"),
+)
+WI_REIHE_START = 2007          # Beschriftet ist nur jedes zweite Jahr,
+WI_REIHE_JAHRE = 19            # die Punkte stehen aber für jedes.
+
+
+def _wi_reihe_von_seite(page, ab_y: float) -> list[int]:
+    """Die Wertetiketten des Diagramms unterhalb einer Überschrift.
+
+    Nach x-Koordinate sortiert -- das ist die Zeitachse. Die Lesereihenfolge
+    des PDF taugt dafür nicht.
+    """
+    werte = [w for w in page.extract_words()
+             if WI_REIHE_WERT.match(w["text"]) and w["top"] > ab_y]
+    if not werte:
+        return []
+    werte.sort(key=lambda w: w["top"])
+    band = [werte[0]]
+    for w in werte[1:]:
+        if w["top"] - band[-1]["top"] > 60:
+            break
+        band.append(w)
+    if len(band) < WI_REIHE_JAHRE:
+        return []
+    band.sort(key=lambda w: w["x0"])
+    return [int(w["text"].replace(".", "")) for w in band[:WI_REIHE_JAHRE]]
+
+
+def extract_wiesbaden_reihen(pdf) -> dict[str, list[tuple[int, int]]]:
+    """{Segment: [(Jahr, €/m²), ...]} für Neubau, Wiederverkauf und gesamt."""
+    raus: dict[str, list[tuple[int, int]]] = {}
+    for key, muster in WI_REIHEN:
+        for page in pdf.pages:
+            text = page.extract_text() or ""
+            if not re.search(muster, text):
+                continue
+            treffer = [w for w in page.extract_words()
+                       if w["text"].startswith("Preisentwicklung")]
+            # Die Seite kann zwei Diagramme tragen -- die passende Überschrift
+            # ist die, unter der die gesuchte Formulierung steht.
+            for kopf in sorted(treffer, key=lambda w: w["top"]):
+                zeile = " ".join(
+                    w["text"] for w in page.extract_words()
+                    if abs(w["top"] - kopf["top"]) < 4)
+                if not re.search(muster, zeile):
+                    continue
+                werte = _wi_reihe_von_seite(page, kopf["top"])
+                if werte:
+                    raus[key] = [(WI_REIHE_START + i, v) for i, v in enumerate(werte)]
+                break
+            if key in raus:
+                break
+    return raus
+
+
+# ---------------------------------------------------------------------------
+# Kiel: Eigentumswohnungen nach Baujahresklassen (Abschnitt 7.1.3)
+# ---------------------------------------------------------------------------
+#
+# Eine schlichte Zeilentabelle, aber die Baujahrsbezeichnung ist über mehrere
+# Zeilen gebrochen ("Bau- / jahr bis / 1918"). Deshalb wird die Klasse nicht
+# aus der Datenzeile gelesen, sondern aus den Wortfragmenten links daneben.
+
+KI_BAUJAHR_HEADING = r"ETW\s*\(Kaufpreise\)\s*-\s*Weiterverkauf\s+nach\s+Baujahresklassen"
+KI_BAUJAHR_ZEILE = re.compile(r"^(20\d{2})\s+([\d.]+)\s+(\d+)\s+(\d+)\s+(\d+)$")
+KI_NAME_SPALTE = 120           # Links davon steht nur die Klassenbezeichnung
+
+
+def _ki_klassenname(fragmente: list[str]) -> str:
+    """Aus „Bau- jahr bis 1918“ wird „Baujahr bis 1918“.
+
+    Der Bericht bricht die Bezeichnung über drei Zeilen, mitten im Wort. Die
+    Fragmente stehen deshalb einzeln da und müssen zusammengesetzt werden.
+    """
+    text = " ".join(fragmente)
+    text = re.sub(r"Bau-\s*jahr", "Baujahr", text)
+    text = re.sub(r"(\d)-\s+(\d)", r"\1-\2", text)   # „1919- 1949“
+    text = re.sub(r"\s+", " ", text).strip()
+    # Dem ersten Block klebt der Seitenkopf voran -- deshalb die Bezeichnung
+    # gezielt herausschneiden statt den ganzen Text zu nehmen.
+    treffer = re.search(r"Baujahr\s+(?:bis\s+\d{4}|ab\s+\d{4}|\d{4}\s*-\s*\d{4})", text)
+    return treffer.group(0) if treffer else ""
+
+
+def extract_kiel_baujahre(pdf) -> dict[str, list[dict]]:
+    """{Baujahrsklasse: [{jahr, preis, wohnflaeche, lage, faelle}, ...]}.
+
+    Je Klasse fünf Jahrgänge. Ein neuer Block beginnt, wo die Jahreszahl
+    zurückspringt -- verlässlicher als auf das Auftauchen von „Bau-“ zu warten,
+    das erst in der zweiten Zeile eines Blocks steht.
+    """
+    # Nicht die erste Trefferseite, sondern die ergiebigste: die Überschrift
+    # steht auch im Inhaltsverzeichnis, und dort gibt es keine Zahlen.
+    seite, punkte = None, 0
+    for kandidat in pdf.pages:
+        text = kandidat.extract_text() or ""
+        if not re.search(KI_BAUJAHR_HEADING, text):
+            continue
+        treffer = sum(1 for z in text.splitlines()
+                      if KI_BAUJAHR_ZEILE.match(z.strip()))
+        if treffer > punkte:
+            seite, punkte = kandidat, treffer
+    if seite is None:
+        return {}
+
+    bloecke: list[tuple[list[str], list[dict]]] = []
+    fragmente: list[str] = []
+    for zeile in _group_rows(seite.extract_words(), tolerance=3.0):
+        links = [w["text"] for w in zeile if w["x0"] < KI_NAME_SPALTE]
+        rechts = " ".join(w["text"] for w in zeile if w["x0"] >= KI_NAME_SPALTE)
+        treffer = KI_BAUJAHR_ZEILE.match(rechts)
+        if not treffer:
+            fragmente.extend(links)
+            continue
+
+        jahr = int(treffer.group(1))
+        if not bloecke or jahr <= bloecke[-1][1][-1]["jahr"]:
+            bloecke.append((list(fragmente), []))
+            fragmente = []
+        bloecke[-1][0].extend(links)
+        bloecke[-1][1].append({
+            "jahr": jahr,
+            "preis": int(treffer.group(2).replace(".", "")),
+            "wohnflaeche": int(treffer.group(3)),
+            "lage": int(treffer.group(4)),
+            "faelle": int(treffer.group(5)),
+        })
+
+    raus: dict[str, list[dict]] = {}
+    for frags, reihe in bloecke:
+        name = _ki_klassenname(frags)
+        if name.startswith("Baujahr") and reihe:
+            raus[name] = reihe
+    return raus

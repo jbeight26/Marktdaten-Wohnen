@@ -22,6 +22,8 @@ Das Ergebnis ist eine eigenständige HTML-Seite mit:
 - Kaufpreisen nach Baujahr und Lagequalität als Farbmatrix
 - Bestand gegen Neubau über die normierte Standardwohnung
 - Preisindizes für Eigentumswohnungen und Mehrfamilienhäuser
+- einer **Preisentwicklung für jede Stadt** — Wiesbaden bis 2007 zurück,
+  Kiel nach Baujahresklassen, Frankfurt nach Segmenten
 - Mehrfamilienhäusern: Verkäufe je Stadtteil, Index, Stadtteilfaktoren
 
 Die Datei ist eigenständig und lässt sich weitergeben — sie braucht weder Server

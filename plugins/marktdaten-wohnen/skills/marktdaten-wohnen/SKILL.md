@@ -9,6 +9,21 @@ Wertet die Immobilienmarktberichte der Gutachterausschüsse aus und erzeugt eine
 eigenständige HTML-Seite mit Kaufpreisen je Stadtteil, Verlaufsansicht,
 Lagematrix und dem Vergleich Bestand gegen Neubau.
 
+Jede Stadt zeigt jetzt auch eine **Preisentwicklung** — mehrere Linien, deren
+Bedeutung der jeweilige Bericht vorgibt. Was welche Stadt hergibt:
+
+| Ansicht | Hamburg | Frankfurt | Wiesbaden | Kiel |
+|---|---|---|---|---|
+| Kaufpreise je Gebiet | ✓ | ✓ | ✓ | ✓ |
+| Verlauf je Gebiet | ✓ 2021–2025 | ✓ 2021–2025 | – | – |
+| Preisentwicklung | ✓ Index 2015–2025 | ✓ 2021–2025 | ✓ **2007–2025** | ✓ 2021–2025 |
+| Bestand gegen Neubau | ✓ Standardwohnung | ✓ als Linien | ✓ als Linien | – |
+| Baujahr × Lagequalität | ✓ | – | – | – |
+| Baujahrsklassen | ✓ | ✓ als Segmente | ✓ in den Zellen | ✓ als Linien |
+
+Ein Strich heißt: der Bericht führt es nicht. Behaupte in dem Fall nichts und
+rechne nichts hoch — sage, was fehlt und warum.
+
 In jeder Stadt lassen sich Gebiete suchen und als Favorit anheften; die
 Favoriten liegen je Stadt getrennt. Wo mehrere Jahrgänge vorliegen — Hamburg
 und Frankfurt — gibt es zusätzlich einen Reiter „Verlauf“ mit der Preisspanne

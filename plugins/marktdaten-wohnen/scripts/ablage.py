@@ -175,6 +175,17 @@ def stadt_fakten(daten) -> list[Faktum]:
                     wert=segment.total_count, einheit="Verkäufe", seite=seite,
                     methode=methode,
                 ))
+
+    # Die Preisreihen hängen an der Stadt, nicht am Jahrgang: sie reichen
+    # weiter zurück als die Gebietstabellen -- bei Wiesbaden bis 2007.
+    for linie, punkte in (daten.verlauf or {}).items():
+        for jahr, wert in punkte:
+            raus.append(Faktum(
+                quelle=daten.key, bericht=daten.report_year, jahr=jahr,
+                ebene="verlauf", gebiet=linie, objektart="etw",
+                kennzahl="preis", wert=wert, einheit="€/m²",
+                methode="abgelesen" if daten.key == "wiesbaden" else "text",
+            ))
     return raus
 
 
@@ -372,6 +383,15 @@ def lade_stadt(con: sqlite3.Connection, quelle: str, staedte):
             source_page=jahr_meta.get("stadt", {}).get("sourcePage", ""),
             segments=sortiert))
 
+    # Reihenfolge der Linien wie im Leser -- die Datenbank sortiert anders.
+    verlauf: dict[str, list[tuple[int, int]]] = {}
+    for r in con.execute(
+            "SELECT gebiet, jahr, wert FROM fakten WHERE quelle=? AND ebene='verlauf' "
+            "ORDER BY jahr", (quelle,)):
+        verlauf.setdefault(r["gebiet"], []).append((int(r["jahr"]), _ganz(r["wert"])))
+    ordnung = stadt.get("verlaufLinien") or sorted(verlauf)
+    verlauf = {k: verlauf[k] for k in ordnung if k in verlauf}
+
     neueste = jahre_objekte[-1]
     return staedte.CityDataset(
         key=quelle, city=stadt.get("city", quelle.capitalize()),
@@ -381,6 +401,9 @@ def lade_stadt(con: sqlite3.Connection, quelle: str, staedte):
         pdf_url=stadt.get("pdfUrl", ""), source_page=neueste.source_page,
         segments=neueste.segments, notes=stadt.get("notes", []),
         years=jahre_objekte if len(jahre_objekte) > 1 else [],
+        verlauf=verlauf,
+        verlauf_titel=stadt.get("verlaufTitel", ""),
+        verlauf_note=stadt.get("verlaufNote", ""),
     )
 
 
@@ -399,6 +422,9 @@ def stadt_meta(daten) -> dict:
         "publisher": daten.publisher, "pdfUrl": daten.pdf_url,
         "sourcePage": daten.source_page, "notes": daten.notes,
         "segmente": segmente,
+        "verlaufTitel": daten.verlauf_titel,
+        "verlaufNote": daten.verlauf_note,
+        "verlaufLinien": list((daten.verlauf or {}).keys()),
     }
 
 

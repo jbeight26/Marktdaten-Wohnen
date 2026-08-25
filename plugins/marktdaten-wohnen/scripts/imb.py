@@ -1469,6 +1469,22 @@ pre { background:var(--plane); border:1px solid var(--hairline); border-radius:8
 .broker-row { display:flex; flex-wrap:wrap; align-items:baseline; gap:10px;
               padding:9px 0; border-bottom:1px solid var(--hairline); }
 .broker-row:last-child { border-bottom:none; }
+/* Kategoriale Linienfarben. Bewusst nicht die Heatmap-Rampe: die ist eine
+   Reihenfolge, hier geht es um Unterscheidbarkeit. */
+:root {
+  --linie-1:#2f6f8f; --linie-2:#b4693a; --linie-3:#5b7d4b;
+  --linie-4:#8a5a86; --linie-5:#9a8237; --linie-6:#6a6f7a;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --linie-1:#79b4d4; --linie-2:#e0a077; --linie-3:#9dc48a;
+    --linie-4:#c79bc2; --linie-5:#d8bf72; --linie-6:#a8adb8;
+  }
+}
+.verlauf-legende { display:flex; flex-wrap:wrap; gap:14px; align-items:center; }
+.verlauf-key { display:inline-flex; align-items:center; gap:6px; font-size:12px;
+               color:var(--ink-2); }
+.verlauf-key i { width:14px; height:3px; border-radius:2px; display:inline-block; }
 .city-series { display:flex; flex-wrap:wrap; gap:14px; align-items:baseline; }
 .city-series b { font-variant-numeric:tabular-nums; font-weight:600; color:var(--ink); }
 .city-series .jahr { color:var(--muted); font-size:11.5px; }
@@ -2106,6 +2122,89 @@ APP_JS = r"""
     return null;
   }
 
+  // Preisentwicklung einer Zusatzstadt. Mehrere Linien, weil jede Stadt etwas
+  // anderes gegenueberstellt: Wiesbaden Neubau gegen Bestand, Kiel
+  // Baujahrsklassen, Frankfurt seine Segmente. Aufbau wie bei Hamburgs Index --
+  // dieselbe Bildsprache, damit man nicht umdenken muss.
+  function renderCityVerlauf(c) {
+    var host = document.getElementById('city-verlauf-card');
+    var linien = (c && c.verlauf) || [];
+    if (!linien.length) { host.hidden = true; return; }
+    host.hidden = false;
+
+    document.getElementById('city-verlauf-titel').textContent =
+      c.verlaufTitel || 'Preisentwicklung';
+    document.getElementById('city-verlauf-sub').textContent =
+      'Mittlere Kaufpreise je m² Wohnfläche, ' + c.city + '.';
+
+    var jahre = {};
+    linien.forEach(function (l) {
+      l.punkte.forEach(function (p) { jahre[p.year] = 1; });
+    });
+    var achse = Object.keys(jahre).map(Number).sort(function (a, b) { return a - b; });
+    if (achse.length < 2) { host.hidden = true; return; }
+
+    var alle = [];
+    linien.forEach(function (l) {
+      l.punkte.forEach(function (p) { if (p.value != null) alle.push(p.value); });
+    });
+    var W = 760, H = 210, padL = 46, padR = 26, padT = 18, padB = 26;
+    var lo = Math.floor(Math.min.apply(null, alle) / 500) * 500;
+    var hi = Math.ceil(Math.max.apply(null, alle) / 500) * 500;
+    if (hi === lo) hi = lo + 500;
+    var x = function (jahr) {
+      return padL + achse.indexOf(jahr) * (W - padL - padR) / (achse.length - 1);
+    };
+    var y = function (v) { return padT + (hi - v) / (hi - lo) * (H - padT - padB); };
+
+    var grid = '', ticks = 4;
+    for (var g = 0; g <= ticks; g++) {
+      var gv = lo + (hi - lo) * g / ticks, gy = y(gv);
+      grid += '<line class="index-grid" x1="' + padL + '" y1="' + gy.toFixed(1)
+        + '" x2="' + (W - padR) + '" y2="' + gy.toFixed(1) + '"/>'
+        + '<text class="index-axis" x="' + (padL - 7) + '" y="' + (gy + 3.5).toFixed(1)
+        + '" text-anchor="end">' + fmt(Math.round(gv)) + '</text>';
+    }
+    // Jahreszahlen ausduennen, sonst ueberlappen sie bei langen Reihen.
+    var schritt = Math.ceil(achse.length / 10);
+    achse.forEach(function (jahr, i) {
+      if (i % schritt && i !== achse.length - 1) return;
+      grid += '<text class="index-axis" x="' + x(jahr).toFixed(1) + '" y="' + (H - 6)
+        + '" text-anchor="middle">' + String(jahr).slice(2) + '</text>';
+    });
+
+    var pfade = '', legende = '';
+    linien.forEach(function (l, n) {
+      var farbe = 'var(--linie-' + ((n % 6) + 1) + ')';
+      var punkte = l.punkte.filter(function (p) { return p.value != null; });
+      if (!punkte.length) return;
+      pfade += '<path fill="none" stroke="' + farbe + '" stroke-width="2" d="'
+        + punkte.map(function (p, i) {
+            return (i ? 'L' : 'M') + x(p.year).toFixed(1) + ' ' + y(p.value).toFixed(1);
+          }).join(' ') + '"/>';
+      punkte.forEach(function (p) {
+        pfade += '<circle cx="' + x(p.year).toFixed(1) + '" cy="' + y(p.value).toFixed(1)
+          + '" r="2.6" fill="' + farbe + '"><title>' + esc(l.label) + ' ' + p.year
+          + ': ' + fmt(p.value) + ' €/m²</title></circle>';
+      });
+      var letzt = punkte[punkte.length - 1], erst = punkte[0];
+      var delta = Math.round((letzt.value / erst.value - 1) * 100);
+      legende += '<span class="verlauf-key"><i style="background:' + farbe + '"></i>'
+        + esc(l.label) + ' <span class="jahr">' + fmt(letzt.value) + ' €/m² · '
+        + (delta >= 0 ? '+' : '−') + Math.abs(delta) + ' % seit ' + erst.year
+        + '</span></span>';
+    });
+
+    document.getElementById('city-verlauf-plot').innerHTML =
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" '
+      + 'aria-label="Preisentwicklung ' + esc(c.city) + '">'
+      + grid + pfade + '</svg>';
+    var legendeHost = document.getElementById('city-verlauf-legende');
+    legendeHost.className = 'legend-note verlauf-legende';
+    legendeHost.innerHTML = legende;
+    document.getElementById('city-verlauf-note').textContent = c.verlaufNote || '';
+  }
+
   function renderCity() {
     var c = activeCity();
     var host = document.getElementById('city-card');
@@ -2117,6 +2216,7 @@ APP_JS = r"""
       });
     document.getElementById('switches').hidden = !!c;
     host.hidden = !c;
+    renderCityVerlauf(c);
 
     // Der Seitenkopf muss der gewählten Stadt folgen, sonst steht dort Hamburg
     // über Wiesbadener Zahlen.
@@ -2735,6 +2835,9 @@ def cities_payload(cities: list | None) -> list[dict]:
             "publisher": c.publisher, "reportYear": c.report_year,
             "dataYear": c.data_year, "pdfUrl": c.pdf_url,
             "sourcePage": c.source_page, "notes": c.notes,
+            "verlauf": [{"label": k, "punkte": [{"year": j, "value": w} for j, w in v]}
+                        for k, v in (c.verlauf or {}).items()],
+            "verlaufTitel": c.verlauf_titel, "verlaufNote": c.verlauf_note,
             "years": [
                 {
                     "dataYear": y.data_year, "reportYear": y.report_year,
@@ -2923,6 +3026,14 @@ def render_html(report: Report, live: bool = False, command: str = "python imb.p
 </section>
 
 <section class="card" id="missing"></section>
+
+<section class="card" id="city-verlauf-card" hidden>
+  <h2 id="city-verlauf-titel"></h2>
+  <p class="section-note" id="city-verlauf-sub"></p>
+  <div class="index-wrap" id="city-verlauf-plot"></div>
+  <p class="legend-note" id="city-verlauf-legende"></p>
+  <p class="matrix-note" id="city-verlauf-note"></p>
+</section>
 
 <section class="card" id="city-card" hidden>
   <h2 id="city-title"></h2>

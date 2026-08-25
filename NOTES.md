@@ -79,6 +79,35 @@ identisch mit der vorherigen.
 ebenso. Der Umbau sitzt in zwei neuen Dateien -- `db.py` für den Speicher,
 `ablage.py` für den Weg hinein und heraus.
 
+### Gleiche Ansichten für alle Städte
+
+**Jede Stadt hat jetzt eine Preisentwicklung** — aber die Linien bedeuten
+überall etwas anderes, weil die Berichte Verschiedenes hergeben. Wiesbaden
+trennt Neubau und Wiederverkauf seit 2007, Kiel zeigt sechs Baujahrsklassen ab
+2021, Frankfurt seine drei Segmente. Dieselbe Bildsprache, ehrlich beschriftet.
+
+**Drei neue Leser, alle ohne OCR.**
+
+- *Wiesbaden, Abschnitt 5.6.* Die Reihen stehen nur als Diagramm. Aber die
+  Datenpunkte sind beschriftet, und die Beschriftung trägt einen
+  Tausenderpunkt („7.553“), die Achsenticks nicht („7800“). Diese eine
+  Eigenheit macht den Unterschied zwischen Auslesen und Raten.
+- *Kiel, Abschnitt 7.1.3.* Saubere Zeilentabelle, aber die Klassenbezeichnung
+  ist mitten im Wort über drei Zeilen gebrochen („Bau- / jahr bis / 1918“).
+  Gelesen wird sie aus den Wortfragmenten links der Datenspalte.
+- *Frankfurt.* Kein eigenes Diagramm im Bericht — der Verlauf entsteht aus den
+  Segmentwerten der Jahrgänge, die ohnehin schon vorliegen.
+
+**Baujahr × Lagequalität bleibt Hamburg vorbehalten.** Frankfurt führt
+Lagestufen nur für Eigenheime und Reihenhäuser, Wiesbaden und Kiel für
+Wohnungen gar keine. Diese Matrix für die anderen Städte zu bauen hieße, sie zu
+erfinden. Sie fehlt deshalb sichtbar, statt geschätzt zu werden.
+
+**Zwei Fallen, beide schon bekannt.** Kiels Überschrift steht auch im
+Inhaltsverzeichnis — es gewinnt wieder die Seite mit der höchsten Ausbeute,
+nicht der erste Treffer. Und Kiels erstem Block klebte der Seitenkopf voran,
+weshalb die Bezeichnung gezielt herausgeschnitten statt vorn abgeschnitten wird.
+
 ### Aufbau
 
 **Ein Ordner statt zwei.** Vorher lagen Projektordner und Repository nebeneinander,

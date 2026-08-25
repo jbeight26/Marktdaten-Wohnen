@@ -71,6 +71,30 @@ aus dem Text der Berichte, 2025 aus der Texterkennung. Läuft das Skript mit
 `--no-ocr`, oder ist die Texterkennung nicht eingerichtet — sie setzt macOS
 voraus —, endet die Reihe bei 2024.
 
+## Welche Ansicht welche Stadt hergibt
+
+| Ansicht | Hamburg | Frankfurt | Wiesbaden | Kiel |
+|---|---|---|---|---|
+| Kaufpreise je Gebiet | ✓ | ✓ | ✓ | ✓ |
+| Verlauf je Gebiet | ✓ 2021–2025 | ✓ 2021–2025 | – | – |
+| Preisentwicklung | ✓ Index 2015–2025 | ✓ 2021–2025 | ✓ **2007–2025** | ✓ 2021–2025 |
+| Bestand gegen Neubau | ✓ Standardwohnung | ✓ als Linien | ✓ als Linien | – |
+| Baujahr × Lagequalität | ✓ | – | – | – |
+| Baujahrsklassen | ✓ | ✓ als Segmente | ✓ in den Zellen | ✓ als Linien |
+
+Drei Punkte, die dabei zählen:
+
+- **Baujahr × Lagequalität gibt es nur für Hamburg.** Frankfurt führt zwar
+  Lagestufen, aber für Eigenheime und Reihenhäuser, nicht für
+  Eigentumswohnungen. Wiesbaden und Kiel weisen für Wohnungen gar keine
+  Lagequalität aus. Eine solche Matrix für diese Städte wäre erfunden.
+- **Wiesbadens Reihe reicht bis 2007** — die längste im Werkzeug. Sie stammt aus
+  Abschnitt 5.6 „Preisreihen“, wo die Werte nur als Diagrammbeschriftung stehen.
+  Abgelesen wurden die Datenpunkte, nicht die Achse.
+- **Kiels Linien sind Baujahrsklassen, keine Segmente.** Der Bericht führt in
+  Abschnitt 7.1.3 nur Weiterverkäufe, Wohnfläche 60–100 m², ohne Düsternbrook.
+  Ein Bestand-Neubau-Vergleich lässt sich daraus nicht bauen.
+
 ## Was es je Stadtteil gibt
 
 | Angabe | Eigentumswohnungen | Mehrfamilienhäuser |
