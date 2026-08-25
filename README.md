@@ -41,7 +41,9 @@ stimmt.
 plugins/marktdaten-wohnen/
   .claude-plugin/plugin.json         Beschreibung des Plugins
   skills/marktdaten-wohnen/          Anweisung für Claude, samt Datenlage
-  scripts/                           imb.py, staedte.py, ocr.py, maklerdaten.json
+  scripts/                           imb.py, staedte.py, ocr.py
+  scripts/maklerdaten.json           Vorlage für Zahlen Dritter
+~/.config/marktdaten-wohnen/         eigene Quellendatei, überlebt Aktualisierungen
 Auswertungen/                        erzeugte Dateien (nicht im Repository)
 ```
 
@@ -53,8 +55,9 @@ Auswertungen/                        erzeugte Dateien (nicht im Repository)
 | Wiesbaden | 26 Stadtbezirke | Neubau, Umwandlung, Weiterverkauf | 2025 |
 | Kiel | 26 Stadtteile | Weiterverkauf | 2025 |
 
-Frankfurt fehlt: die Stadt sperrt automatisierte Downloads mit einer
-Cloudflare-Prüfung.
+Frankfurt fehlt aus zwei Gründen: die Stadt sperrt automatisierte Downloads mit
+einer Cloudflare-Prüfung, und es gibt keinen Frankfurter Tabellenleser — `--pdf`
+allein genügt deshalb nicht. Für Frankfurt liegen nur Zahlen Dritter vor.
 
 ## Hamburg 2025 kommt aus einer Texterkennung
 
