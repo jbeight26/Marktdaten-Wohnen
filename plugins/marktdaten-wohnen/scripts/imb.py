@@ -25,6 +25,7 @@ import concurrent.futures as futures
 import html
 import io
 import json
+import os
 import re
 import sys
 from collections import Counter
@@ -191,6 +192,13 @@ SOURCES: dict[str, Source] = {
 # beim Parsen dramatisch -- Minuten statt Sekunden.
 DEFAULT_CACHE_DIR = Path.home() / ".cache" / "immobilienmarktberichte"
 
+# Selbst gepflegte Zahlen Dritter gehoeren NICHT ins Plugin: `claude plugin
+# update` ersetzt das Plugin-Verzeichnis vollstaendig, jede eigene Eintragung
+# waere danach weg. Die Datei im Plugin dient nur noch als Vorlage.
+USER_DATA_DIR = Path.home() / ".config" / "marktdaten-wohnen"
+USER_BROKER_FILE = USER_DATA_DIR / "quellen.json"
+BROKER_TEMPLATE = Path(__file__).parent / "maklerdaten.json"
+
 
 # ===========================================================================
 # Datenmodell
@@ -246,6 +254,7 @@ class Report:
     standard_flat: list[dict] = field(default_factory=list)
     standard_flat_note: str = ""
     broker: dict = field(default_factory=dict)
+    broker_path: str = ""
     extracted_on: str = field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M"))
 
     @property
@@ -325,10 +334,40 @@ def download_pdf(url: str, dest: Path, timeout: int = 90, referer: str = "") -> 
     return dest
 
 
+def is_pdf(path: Path) -> bool:
+    """Kopfprüfung: beginnt die Datei mit %PDF?
+
+    Ein abgebrochener Download oder eine Sperrseite unter PDF-Namen faellt sonst
+    erst beim Parsen auf -- als kryptischer pdfminer-Fehler, weit entfernt von
+    der Ursache. Genau so ist eine Cloudflare-Seite als "FFM2026.pdf" im
+    Zwischenspeicher gelandet. Fuenf Bytes zu lesen kostet nichts.
+    """
+    try:
+        with path.open("rb") as fh:
+            return fh.read(5).startswith(b"%PDF")
+    except OSError:
+        return False
+
+
+def cache_hit(target: Path, refresh: bool) -> bool:
+    """Ist die Datei im Zwischenspeicher brauchbar?
+
+    Unbrauchbare Eintraege werden gemeldet und neu geladen, statt sie
+    stillschweigend weiterzureichen.
+    """
+    if refresh or not target.exists():
+        return False
+    if is_pdf(target):
+        return True
+    print(f"  {target.name} im Zwischenspeicher ist kein PDF — wird neu geladen",
+          flush=True)
+    return False
+
+
 def ensure_pdf(source: Source, year: int, cache_dir: Path, refresh: bool = False,
                quiet: bool = False) -> Path:
     target = cache_dir / source.filename(year)
-    if target.exists() and not refresh:
+    if cache_hit(target, refresh):
         return target
     path = download_pdf(source.url(year), target, referer=source.landing_page)
     if not quiet:
@@ -1057,7 +1096,8 @@ def build_report(source: Source, years: Sequence[int], cache_dir: Path,
                  refresh: bool = False,
                  page_overrides: dict[str, int] | None = None,
                  local_pdf: Path | None = None,
-                 use_ocr: bool = True) -> tuple[Report, list[str]]:
+                 use_ocr: bool = True,
+                 broker_path: Path | None = None) -> tuple[Report, list[str]]:
     """Baut den Gesamtbericht über alle angeforderten Jahrgänge."""
     report = Report(
         source_key=source.key,
@@ -1160,7 +1200,9 @@ def build_report(source: Source, years: Sequence[int], cache_dir: Path,
         print(f"  Standardwohnung Altbau/Neubau: {len(sf)} Jahre "
               f"({sf[0]['year']}–{sf[-1]['year']})", flush=True)
 
-    report.broker = load_broker_data(Path(__file__).parent / "maklerdaten.json")
+    pfad = broker_file(broker_path)
+    report.broker = load_broker_data(pfad)
+    report.broker_path = str(pfad)
 
     if not report.years:
         raise ExtractionError(
@@ -1399,6 +1441,13 @@ pre { background:var(--plane); border:1px solid var(--hairline); border-radius:8
 .broker-row { display:flex; flex-wrap:wrap; align-items:baseline; gap:10px;
               padding:9px 0; border-bottom:1px solid var(--hairline); }
 .broker-row:last-child { border-bottom:none; }
+.broker-group { margin:0 0 4px; }
+.broker-group:last-child { margin-bottom:0; }
+.broker-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px;
+               padding:12px 0 4px; font-size:13.5px; color:var(--ink); }
+.broker-head .broker-meta { font-size:12px; }
+.broker-group .broker-row { padding-left:14px; }
+.broker-group .broker-src { min-width:120px; color:var(--ink-2); }
 .broker-src { font-size:13.5px; color:var(--ink); min-width:150px; }
 .broker-val { font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; }
 .broker-meta { font-size:12px; color:var(--muted); }
@@ -2227,16 +2276,63 @@ APP_JS = r"""
 
   /* --- Maklerdaten --------------------------------------------------- */
 
+  // Bezugswert fuer die Abweichung. Entscheidend ist, dass wirklich dasselbe
+  // Gebiet verglichen wird: eine Frankfurter Zahl gegen den Hamburger
+  // Gesamtwert zu rechnen ergaebe eine Prozentzahl, die nichts bedeutet.
+  // Findet sich kein passender amtlicher Wert, entfaellt die Abweichung.
+  function amtlicherBezug(e, schluessel) {
+    var stadt = e.stadt || DATA.city;
+
+    // Nach Lagequalitaet gegliederte Fremdzahlen haben in den amtlichen
+    // Berichten keine Entsprechung: der Gutachterausschuss weist Kaufpreise je
+    // Gebiet aus, nicht je Lagestufe. Ein Vergleich waere hier nicht nur
+    // ungenau, sondern gegenstandslos.
+    if (e.ebene === 'lage') return null;
+
+    if (e.ebene === 'stadtteil') {
+      // Gebietswerte gibt es nur fuer die Leitstadt der Auswertung.
+      if (stadt !== DATA.city) return null;
+      var a = LAST.areas[schluessel];
+      if (!a || a.p == null) return null;
+      return { wert: a.p, jahr: LAST.dataYear, bezug: schluessel };
+    }
+
+    var name = schluessel || stadt;
+    if (name === DATA.city) {
+      if (LAST.total == null) return null;
+      return { wert: LAST.total, jahr: LAST.dataYear, bezug: DATA.city + ' gesamt' };
+    }
+    for (var i = 0; i < CITIES.length; i++) {
+      if (CITIES[i].city !== name) continue;
+      var segs = CITIES[i].segments || [];
+      // Weiterverkauf ist das mit Angebotspreisen vergleichbare Segment;
+      // Neubau waere der falsche Massstab.
+      var vorzug = ['weiterverkauf', 'bestand'];
+      for (var v = 0; v < vorzug.length; v++) {
+        for (var j = 0; j < segs.length; j++) {
+          if (segs[j].key === vorzug[v] && segs[j].total != null) {
+            return { wert: segs[j].total, jahr: CITIES[i].dataYear,
+                     bezug: name + ', ' + segs[j].label };
+          }
+        }
+      }
+      return null;
+    }
+    return null;
+  }
+
   function renderBroker() {
     var host = document.getElementById('broker-card');
     var b = DATA.broker || {};
     if (!b.eintraege || !b.eintraege.length) { host.hidden = true; return; }
 
-    var amtlich = LAST.total, amtlichJahr = LAST.dataYear;
     var rows = b.eintraege.map(function (e) {
       var keys = Object.keys(e.werte || {});
       var basis = '<span class="tag">' + esc(e.art || '?') + '</span>'
+        + (e.objektart ? ' <span class="tag">' + esc(e.objektart) + '</span>' : '')
         + (e.datenbasis ? ' <span class="broker-meta">' + esc(e.datenbasis) + '</span>' : '');
+      var herkunft = (e.seite ? ' · Seite ' + esc(e.seite) : '')
+        + (e.erfasst ? ' · ' + esc(e.erfasst) : '');
 
       if (!keys.length) {
         // Offener Platzhalter: die Quelle ist vorgesehen, aber noch ohne Zahlen.
@@ -2251,21 +2347,63 @@ APP_JS = r"""
           + '</div>';
       }
 
-      return keys.map(function (k) {
-        var v = e.werte[k];
-        var delta = amtlich ? Math.round((v / amtlich - 1) * 100) : null;
+      // Traegt ein Eintrag mehrere Werte, gehoert die Herkunft einmal darueber
+      // und nicht in jede Zeile -- sonst steht dieselbe Zeile sechzehnmal da.
+      var gruppiert = keys.length > 1;
+      var kopf = gruppiert
+        ? '<div class="broker-head"><strong>' + esc(e.quelle) + '</strong>'
+          + (e.stadt ? ' · ' + esc(e.stadt) : '')
+          + ' ' + basis
+          + '<span class="broker-meta">' + esc(e.einheit || DATA.unit)
+          + (e.stand ? ' · Stand ' + esc(e.stand) : '') + herkunft + '</span>'
+          + (e.url ? '<a class="broker-meta" href="' + esc(e.url) + '">Quelle</a>' : '')
+          + '</div>'
+        : '';
+
+      var zeilen = keys.map(function (k) {
+        var wert = e.werte[k];
+        // Eine Spanne [von, bis] laesst sich nicht gegen einen Einzelwert
+        // verrechnen -- der Mittelwert waere eine erfundene Zahl.
+        var istSpanne = Object.prototype.toString.call(wert) === '[object Array]';
+        var ref = istSpanne ? null : amtlicherBezug(e, k);
+        var delta = ref ? Math.round((wert / ref.wert - 1) * 100) : null;
+        var zeigeSchluessel = keys.length > 1 || k !== DATA.city
+          || (e.stadt && e.stadt !== DATA.city);
+        var titel = esc(e.quelle)
+          + (e.stadt && e.stadt !== k ? ' · ' + esc(e.stadt) : '')
+          + (zeigeSchluessel ? ' · ' + esc(k) : '');
+
+        var anzeige = istSpanne ? fmt(wert[0]) + '–' + fmt(wert[1]) : fmt(wert);
+        var abweichung = '';
+        if (delta != null) {
+          abweichung = '<span class="broker-delta">'
+            + (delta >= 0 ? '+' : '−') + Math.abs(delta)
+            + ' % gegenüber ' + esc(ref.bezug) + ' ' + ref.jahr
+            + ' (' + fmt(ref.wert) + ')</span>';
+        } else if (e.ebene !== 'lage' && !istSpanne) {
+          // Nur dort melden, wo ein Vergleich zu erwarten waere.
+          abweichung = '<span class="broker-delta">kein amtlicher Vergleichswert '
+            + 'in dieser Auswertung</span>';
+        }
+
+        if (gruppiert) {
+          return '<div class="broker-row">'
+            + '<span class="broker-src">' + esc(k) + '</span>'
+            + '<span class="broker-val">' + anzeige + '</span>'
+            + abweichung
+            + '</div>';
+        }
         return '<div class="broker-row">'
-          + '<span class="broker-src">' + esc(e.quelle)
-          + (keys.length > 1 || k !== DATA.city ? ' · ' + esc(k) : '') + '</span>'
-          + '<span class="broker-val">' + fmt(v) + '</span>'
+          + '<span class="broker-src">' + titel + '</span>'
+          + '<span class="broker-val">' + anzeige + '</span>'
           + '<span class="broker-meta">' + esc(e.einheit || DATA.unit) + ' · ' + basis
-          + (e.stand ? ' · Stand ' + esc(e.stand) : '') + '</span>'
-          + (delta != null ? '<span class="broker-delta">'
-              + (delta >= 0 ? '+' : '−') + Math.abs(delta) + ' % gegenüber dem amtlichen Wert '
-              + amtlichJahr + ' (' + fmt(amtlich) + ')</span>' : '')
+          + (e.stand ? ' · Stand ' + esc(e.stand) : '') + herkunft + '</span>'
+          + abweichung
           + (e.url ? '<a class="broker-meta" href="' + esc(e.url) + '">Quelle</a>' : '')
           + '</div>';
       }).join('');
+
+      return gruppiert ? '<div class="broker-group">' + kopf + zeilen + '</div>' : zeilen;
     }).join('');
 
     document.getElementById('broker-rows').innerHTML = rows;
@@ -2313,8 +2451,34 @@ APP_JS = r"""
 """
 
 
+def broker_file(explicit: Path | None = None) -> Path:
+    """Die Datei mit den selbst gepflegten Zahlen Dritter.
+
+    Reihenfolge: `--daten`, dann `MARKTDATEN_QUELLEN`, dann die Nutzerdatei
+    unter ~/.config. Fehlt Letztere, wird sie aus der Vorlage im Plugin
+    angelegt -- danach ueberlebt sie jede Plugin-Aktualisierung.
+    """
+    if explicit:
+        return explicit
+    aus_umgebung = os.environ.get("MARKTDATEN_QUELLEN")
+    if aus_umgebung:
+        return Path(aus_umgebung).expanduser()
+
+    if not USER_BROKER_FILE.exists():
+        try:
+            USER_DATA_DIR.mkdir(parents=True, exist_ok=True)
+            USER_BROKER_FILE.write_text(
+                BROKER_TEMPLATE.read_text(encoding="utf-8"), encoding="utf-8")
+            print(f"  Quellendatei angelegt: {USER_BROKER_FILE}", flush=True)
+        except OSError as exc:
+            # Kein Grund abzubrechen -- ohne eigene Datei greift die Vorlage.
+            print(f"  Hinweis: Quellendatei nicht anlegbar ({exc})", flush=True)
+            return BROKER_TEMPLATE
+    return USER_BROKER_FILE
+
+
 def load_broker_data(path: Path) -> dict:
-    """Liest die kuratierten Maklerzahlen, falls vorhanden.
+    """Liest die kuratierten Zahlen Dritter, falls vorhanden.
 
     Bewusst eine gepflegte Datei statt eines Scrapers: Maklerberichte haben
     keine stabilen Jahres-URLs, wechseln jährlich das Layout und ihre
@@ -2323,12 +2487,19 @@ def load_broker_data(path: Path) -> dict:
     """
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except OSError:
+        return {}
+    except ValueError as exc:
+        # Eine von Hand gepflegte Datei ist die haeufigste Fehlerquelle --
+        # stillschweigend zu verwerfen waere hier das Falsche.
+        print(f"  Achtung: {path} ist kein gültiges JSON ({exc}) — "
+              "Zahlen Dritter bleiben leer.", flush=True)
         return {}
     entries = data.get("eintraege", [])
     if not entries:
         return {}
-    return {"hinweis": data.get("_hinweis", ""), "eintraege": entries}
+    return {"hinweis": data.get("_hinweis", ""), "eintraege": entries,
+            "datei": str(path)}
 
 
 def cities_payload(cities: list | None) -> list[dict]:
@@ -2568,9 +2739,11 @@ def render_html(report: Report, live: bool = False, command: str = "python imb.p
 </section>
 
 <section class="card" id="broker-card">
-  <h2>Zum Vergleich: Angebotspreise Dritter</h2>
+  <h2>Zum Vergleich: Zahlen Dritter</h2>
   <p class="section-note">Bewusst getrennt gehalten und nicht mit den amtlichen
-     Werten verrechnet.</p>
+     Werten verrechnet. Die Abweichung wird nur ausgewiesen, wo ein amtlicher
+     Wert derselben Objektart und desselben Gebiets vorliegt — bei Spannen und
+     bei Angaben nach Lagequalität also gar nicht.</p>
   <div class="broker">
     <p class="broker-warn" id="broker-warn"></p>
     <div id="broker-rows"></div>
@@ -2714,6 +2887,8 @@ def _command_line(args: argparse.Namespace) -> str:
         bits.append(f"--years {args.years}")
     if args.out:
         bits.append(f"--out {args.out}")
+    if args.daten:
+        bits.append(f"--daten {args.daten}")
     return " ".join(bits)
 
 
@@ -2813,6 +2988,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-ocr", action="store_true",
                         help="Texterkennung nicht verwenden, auch wenn eine Tabelle "
                              "nur als Grafik vorliegt")
+    parser.add_argument("--daten", type=Path, metavar="DATEI",
+                        help="Eigene Quellendatei mit Zahlen Dritter "
+                             f"(Standard: {USER_BROKER_FILE})")
     parser.add_argument("--cities", default="alle",
                         help="Weitere Städte: „alle“ (Standard), „keine“ oder "
                              "eine Auswahl wie „wiesbaden,kiel“")
@@ -2831,6 +3009,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     source = SOURCES[args.source]
+    if args.daten and not args.daten.is_file():
+        print(f"Quellendatei nicht gefunden: {args.daten}", file=sys.stderr)
+        return 2
     if args.refresh:
         _index_file(args.cache_dir).unlink(missing_ok=True)
 
@@ -2847,6 +3028,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.pdf:
         if not args.pdf.is_file():
             print(f"Datei nicht gefunden: {args.pdf}", file=sys.stderr)
+            return 2
+        if not is_pdf(args.pdf):
+            print(f"Das ist keine PDF-Datei: {args.pdf}\n"
+                  "  Sie beginnt nicht mit %PDF. Häufigster Fall: im Browser wurde\n"
+                  "  statt des Berichts eine Sperr- oder Fehlerseite gespeichert.",
+                  file=sys.stderr)
             return 2
         local_pdf = args.pdf
         year = args.year
@@ -2872,7 +3059,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     def build(live: bool = False) -> str:
         report, notes = build_report(source, years, args.cache_dir, args.refresh,
-                                     overrides, local_pdf, not args.no_ocr)
+                                     overrides, local_pdf, not args.no_ocr,
+                                     args.daten)
         for note in notes:
             print(f"  Hinweis: {note}")
         extra = collect_cities(args.cities, args.cache_dir, args.refresh)

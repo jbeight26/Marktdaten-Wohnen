@@ -54,6 +54,7 @@ Wähle die Parameter nach dem, was gefragt wurde:
 | Berichte neu laden statt Zwischenspeicher | `--refresh` |
 | nur bestimmte Städte | `--cities wiesbaden` oder `--cities keine` |
 | andere Leitquelle | `--source <name>` |
+| eigene Quellendatei | `--daten <pfad>` |
 
 Der erste Lauf auf einem Rechner lädt rund 70 MB PDF und dauert etwa anderthalb
 Minuten. Danach greift ein Zwischenspeicher und es geht in Sekunden. Kündige die
@@ -99,14 +100,18 @@ Kurzfassung:
   der Bericht nichts aus.
 - **Hamburg 2025 stammt aus einer Texterkennung.** Der Bericht 2026 setzt diese
   Tabelle als Grafik. Zwei Erkennungsmodelle mussten übereinstimmen, sonst wurde
-  nichts übernommen. Sage das dazu, wenn jemand Zahlen für 2025 zitiert, und
-  weise darauf hin, dass die Unterscheidung zwischen „*" und „–" dabei entfällt.
+  nichts übernommen. Sage das dazu, wenn jemand Zahlen für 2025 zitiert. Zwei
+  Folgen davon: die Unterscheidung zwischen „*" und „–" entfällt, und es gibt
+  für 2025 **keine Kauffälle je Stadtteil** — nenne für dieses Jahr also keine
+  Stichprobengröße.
 - **Wiesbadens Bezirkswerte sind gerechnet**, nicht abgelesen: gewichtet nach
   Kauffällen aus den Zellen. Der Bericht gewichtet nach Fläche und nennt deshalb
   leicht andere Gesamtwerte. Sage das, wenn jemand Wiesbadener Zahlen zitiert.
-- **Frankfurt fehlt bewusst.** Die Stadt sperrt automatisierte Downloads mit
-  einer Cloudflare-Prüfung. Bot-Schutz wird nicht umgangen; Frankfurt geht nur
-  über ein von Hand geladenes PDF mit `--pdf`.
+- **Frankfurt fehlt.** Zwei Gründe, nicht einer: Die Stadt sperrt automatisierte
+  Downloads mit einer Cloudflare-Prüfung, und es gibt keinen Frankfurter
+  Tabellenleser. Ein von Hand geladenes PDF genügt deshalb **nicht** — `--pdf`
+  nutzt die Tabellendefinitionen der gewählten Quelle, und die einzige Quelle
+  ist Hamburg. Nenne `--pdf` hier nicht als Ausweg.
 - **Städte nicht unbesehen vergleichen.** Die Gutachterausschüsse grenzen
   unterschiedlich ab (Stadtteil gegen Stadtbezirk, andere Segmente).
 

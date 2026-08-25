@@ -1,18 +1,140 @@
 {
   "_hinweis": "Zahlen Dritter. NICHT mit den amtlichen Kaufpreisen verrechnen oder mitteln. Achte auf die Datengrundlage: 'Angebotspreis' misst Inserate, 'Transaktion' misst Abschlüsse. Nur Letzteres ist mit dem Gutachterausschuss vergleichbar.",
-  "_anleitung": "Eintrag ausfüllen: 'werte' mit Zahlen belegen, 'stand' auf das Datum des Berichts setzen. 'ebene' ist 'stadt' oder 'stadtteil'; bei 'stadtteil' die Namen genau wie im Immobilienmarktbericht schreiben. Einträge ohne Werte erscheinen als offener Platzhalter.",
+  "_vorlage": "Diese Datei im Plugin ist nur die VORLAGE. Gepflegt wird ~/.config/marktdaten-wohnen/quellen.json — sie wird beim ersten Lauf von hier kopiert und überlebt jede Plugin-Aktualisierung. Änderungen an dieser Vorlage werden beim nächsten 'claude plugin update' überschrieben.",
+  "_anleitung": "Eintrag ausfüllen: 'werte' mit Zahlen belegen, 'stand' auf das Datum des Berichts setzen. 'ebene' ist 'stadt', 'stadtteil' oder 'lage'. Bei 'stadtteil' die Gebietsnamen genau wie im Immobilienmarktbericht schreiben. 'stadt' benennt die Stadt, auf die sich der Eintrag bezieht — danach richtet sich, gegen welchen amtlichen Wert die Abweichung gerechnet wird. Ein Wert darf eine Zahl sein oder eine Spanne als [von, bis]. Gibt es keinen vergleichbaren amtlichen Wert, zeigt die Seite bewusst keine Prozentzahl — das gilt immer bei 'ebene': 'lage' und bei Spannen.",
+  "_nachweis": "'seite' und 'erfasst' machen jede Zahl rückverfolgbar. Beispiel: \"seite\": 14, \"erfasst\": \"manuell aus PDF, geprüft am 25.08.2026\". Beides erscheint in der Auswertung neben dem Wert.",
   "eintraege": [
     {
       "quelle": "Colliers",
-      "bericht": "Residential Investment / Wohnreport",
-      "url": "https://www.colliers.de/residential-investment/",
-      "stand": "",
-      "art": "Angebotspreis",
-      "datenbasis": "Maklerportfolio und Marktbeobachtung",
-      "ebene": "stadt",
+      "bericht": "Wohnungsmarkt Deutschland 2025/2026 — City Report",
+      "url": "https://www.colliers.de/",
+      "stand": "erschienen 2025, Kennzahlen 2024 / H1 2025",
+      "art": "Marktspanne",
+      "objektart": "Wohn- und Geschäftshäuser",
+      "datenbasis": "VALUE AG, RIWIS, lokale Gutachterausschüsse, Colliers",
+      "ebene": "lage",
+      "stadt": "Hamburg",
       "einheit": "€/m²",
-      "werte": {},
-      "notiz": "Colliers stellt die Hamburg-Zahlen nicht frei ins Netz; der Report liegt hinter einem Anfrageformular. Nach dem Download hier eintragen, z. B. \"Hamburg\": 6100."
+      "werte": {
+        "Sehr gute Lage": [
+          3500,
+          6500
+        ],
+        "Gute Lage": [
+          2800,
+          4000
+        ],
+        "Mittlere Lage": [
+          2200,
+          3000
+        ],
+        "Einfache Lage": [
+          1800,
+          2400
+        ]
+      },
+      "seite": 46,
+      "erfasst": "aus PDF gelesen, Spaltenzuordnung über Koordinaten geprüft am 25.08.2026",
+      "notiz": "Wohn- und Geschäftshäuser, NICHT Eigentumswohnungen — nicht mit den amtlichen ETW-Kaufpreisen vergleichbar. Der Bericht führt keine Eigentumswohnungspreise; das Wort kommt darin nicht vor. Auf derselben Seite stehen zusätzlich Kaufpreisfaktoren je Lage."
+    },
+    {
+      "quelle": "Colliers",
+      "bericht": "Wohnungsmarkt Deutschland 2025/2026 — City Report",
+      "url": "https://www.colliers.de/",
+      "stand": "erschienen 2025, Kennzahlen 2024 / H1 2025",
+      "art": "Marktspanne",
+      "objektart": "Wohn- und Geschäftshäuser",
+      "datenbasis": "VALUE AG, RIWIS, lokale Gutachterausschüsse, Colliers",
+      "ebene": "lage",
+      "stadt": "Frankfurt am Main",
+      "einheit": "€/m²",
+      "werte": {
+        "Sehr gute Lage": [
+          3600,
+          5650
+        ],
+        "Gute Lage": [
+          3150,
+          3950
+        ],
+        "Mittlere Lage": [
+          2000,
+          3300
+        ],
+        "Einfache Lage": [
+          1600,
+          2100
+        ]
+      },
+      "seite": 41,
+      "erfasst": "aus PDF gelesen, Spaltenzuordnung über Koordinaten geprüft am 25.08.2026",
+      "notiz": "Wohn- und Geschäftshäuser, NICHT Eigentumswohnungen — nicht mit den amtlichen ETW-Kaufpreisen vergleichbar. Der Bericht führt keine Eigentumswohnungspreise; das Wort kommt darin nicht vor. Auf derselben Seite stehen zusätzlich Kaufpreisfaktoren je Lage."
+    },
+    {
+      "quelle": "Colliers",
+      "bericht": "Wohnungsmarkt Deutschland 2025/2026 — City Report",
+      "url": "https://www.colliers.de/",
+      "stand": "erschienen 2025, Kennzahlen 2024 / H1 2025",
+      "art": "Marktspanne",
+      "objektart": "Wohn- und Geschäftshäuser",
+      "datenbasis": "VALUE AG, RIWIS, lokale Gutachterausschüsse, Colliers",
+      "ebene": "lage",
+      "stadt": "Kiel",
+      "einheit": "€/m²",
+      "werte": {
+        "Sehr gute Lage": [
+          2600,
+          3400
+        ],
+        "Gute Lage": [
+          1900,
+          3100
+        ],
+        "Mittlere Lage": [
+          1600,
+          2400
+        ],
+        "Einfache Lage": [
+          1500,
+          2300
+        ]
+      },
+      "seite": 53,
+      "erfasst": "aus PDF gelesen, Spaltenzuordnung über Koordinaten geprüft am 25.08.2026",
+      "notiz": "Wohn- und Geschäftshäuser, NICHT Eigentumswohnungen — nicht mit den amtlichen ETW-Kaufpreisen vergleichbar. Der Bericht führt keine Eigentumswohnungspreise; das Wort kommt darin nicht vor. Auf derselben Seite stehen zusätzlich Kaufpreisfaktoren je Lage."
+    },
+    {
+      "quelle": "Colliers",
+      "bericht": "Wohnungsmarkt Deutschland 2025/2026 — City Report",
+      "url": "https://www.colliers.de/",
+      "stand": "erschienen 2025, Kennzahlen 2024 / H1 2025",
+      "art": "Marktspanne",
+      "objektart": "Wohn- und Geschäftshäuser",
+      "datenbasis": "VALUE AG, RIWIS, lokale Gutachterausschüsse, Colliers",
+      "ebene": "lage",
+      "stadt": "Wiesbaden",
+      "einheit": "€/m²",
+      "werte": {
+        "Sehr gute Lage": [
+          3000,
+          3650
+        ],
+        "Gute Lage": [
+          2400,
+          3150
+        ],
+        "Mittlere Lage": [
+          1900,
+          2600
+        ],
+        "Einfache Lage": [
+          1500,
+          1950
+        ]
+      },
+      "seite": 75,
+      "erfasst": "aus PDF gelesen, Spaltenzuordnung über Koordinaten geprüft am 25.08.2026",
+      "notiz": "Wohn- und Geschäftshäuser, NICHT Eigentumswohnungen — nicht mit den amtlichen ETW-Kaufpreisen vergleichbar. Der Bericht führt keine Eigentumswohnungspreise; das Wort kommt darin nicht vor. Auf derselben Seite stehen zusätzlich Kaufpreisfaktoren je Lage."
     },
     {
       "quelle": "vdpResearch",
@@ -22,9 +144,13 @@
       "art": "Transaktionspreis",
       "datenbasis": "Finanzierungsdaten der Pfandbriefbanken",
       "ebene": "stadt",
+      "stadt": "Hamburg",
       "einheit": "€/m²",
       "werte": {},
+      "seite": "",
+      "erfasst": "",
       "notiz": "Transaktionsbasiert und damit deutlich näher am Gutachterausschuss als Portalzahlen. Als Quervergleich belastbarer als Angebotspreise."
     }
-  ]
+  ],
+  "_objektart": "'objektart' unbedingt setzen, sobald der Eintrag nicht Eigentumswohnungen meint. Colliers weist zum Beispiel Preise für Wohn- und Geschäftshäuser aus; die gegen die amtlichen ETW-Kaufpreise zu halten, wäre ein Kategorienfehler. Die Auswertung zeigt die Objektart deshalb als eigenes Etikett neben jedem Wert."
 }

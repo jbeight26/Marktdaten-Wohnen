@@ -47,8 +47,10 @@ Abgedeckt sind drei Städte:
 | Wiesbaden | 26 Stadtbezirke | Neubau, Umwandlung, Weiterverkauf | 2025 |
 | Kiel | 26 Stadtteile | Weiterverkauf | 2025 |
 
-Oben in der Seite schaltet man zwischen den Städten um. Frankfurt fehlt: die
-Stadt sperrt automatisierte Downloads mit einer Cloudflare-Prüfung.
+Oben in der Seite schaltet man zwischen den Städten um. Frankfurt fehlt aus zwei
+Gründen: die Stadt sperrt automatisierte Downloads mit einer Cloudflare-Prüfung,
+und es gibt keinen Frankfurter Tabellenleser. Ein von Hand geladenes PDF genügt
+deshalb nicht.
 
 Wichtige Grenzen: Für Neubau gibt es keine Werte je Stadtteil, für
 Mehrfamilienhäuser keine Quadratmeterpreise je Stadtteil, und Stadtteile mit
@@ -57,7 +59,23 @@ statt zu schätzen.
 
 ## Zahlen Dritter
 
-`scripts/maklerdaten.json` nimmt Zahlen aus Marktberichten Dritter auf. Sie
-erscheinen in einem eigenen, abgesetzten Abschnitt und werden nie mit den
-amtlichen Werten verrechnet. Jeder Eintrag führt seine Datengrundlage mit —
-`Angebotspreis` misst Inserate, `Transaktionspreis` misst Abschlüsse.
+Zahlen aus Marktberichten Dritter — etwa Colliers oder vdpResearch — werden von
+Hand gepflegt, in
+
+```
+~/.config/marktdaten-wohnen/quellen.json
+```
+
+Die Datei wird beim ersten Lauf aus der Vorlage im Plugin angelegt und liegt
+bewusst **ausserhalb** des Plugins: `claude plugin update` ersetzt das
+Plugin-Verzeichnis, eigene Einträge wären sonst weg. Ein anderer Ort geht mit
+`--daten <pfad>`.
+
+Diese Zahlen erscheinen in einem eigenen, abgesetzten Abschnitt und werden nie
+mit den amtlichen Werten verrechnet. Jeder Eintrag führt seine Datengrundlage
+mit — `Angebotspreis` misst Inserate, `Transaktionspreis` misst Abschlüsse — und
+über `seite` und `erfasst` bleibt nachvollziehbar, woher der Wert stammt.
+
+Die Prozentabweichung wird nur dort ausgewiesen, wo ein amtlicher Wert desselben
+Gebiets vorliegt. Eine Frankfurter Zahl steht deshalb ohne Vergleich — das ist
+gewollt und besser als ein Vergleich mit der falschen Stadt.

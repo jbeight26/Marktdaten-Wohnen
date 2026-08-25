@@ -25,7 +25,7 @@ import pdfplumber
 
 from imb import (
     BROWSER_HEADERS, DownloadError, ExtractionError,
-    _group_rows, download_pdf,
+    _group_rows, cache_hit, download_pdf,
 )
 
 
@@ -389,7 +389,7 @@ def extract_kiel(pdf_path, report_year: int, pdf_url: str = "") -> CityDataset:
 
 def fetch_wiesbaden(cache_dir, year: int, refresh: bool = False):
     target = cache_dir / f"WI{year}.pdf"
-    if target.exists() and not refresh:
+    if cache_hit(target, refresh):
         return target
     return download_pdf(WI_URL.format(year=year), target)
 
@@ -408,6 +408,6 @@ def discover_kiel(session_get) -> dict[int, str]:
 
 def fetch_kiel(cache_dir, year: int, url: str, refresh: bool = False):
     target = cache_dir / f"KI{year}.pdf"
-    if target.exists() and not refresh:
+    if cache_hit(target, refresh):
         return target
     return download_pdf(url, target)

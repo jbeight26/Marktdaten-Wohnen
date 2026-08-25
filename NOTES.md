@@ -85,9 +85,22 @@ Grund: die Kaufpreissammlung erfasst gesetzlich verpflichtend jeden beurkundeten
 Verkauf, Maklerberichte zeigen Inserate oder das eigene Portfolio. Jeder Eintrag
 führt seine Datengrundlage sichtbar mit.
 
-**Colliers nur als Platzhalter.** Colliers veröffentlicht keine frei abrufbaren
-Hamburg-Zahlen; der Report liegt hinter einem Anfrageformular. Zweiter Platzhalter
-ist vdpResearch — transaktionsbasiert und damit belastbarer als Portalzahlen.
+**Colliers ist eingepflegt — aber nicht als das, was erwartet war.** Der Report
+„Wohnungsmarkt Deutschland 2025/2026“ liegt vor und ist ausgewertet. Entscheidend:
+er enthält **keine Eigentumswohnungspreise**. Das Wort kommt auf 79 Seiten kein
+einziges Mal vor. Was er je Stadt führt, sind Mieten und — unter „Wohn- &
+Geschäftshäuser“ — Kaufpreisfaktoren und Quadratmeterpreise, gegliedert nach
+Lagequalität statt nach Gebiet.
+
+Übernommen sind die €/m²-Spannen für Hamburg (S.46), Frankfurt (S.41), Kiel
+(S.53) und Wiesbaden (S.75), ausgezeichnet als Objektart „Wohn- und
+Geschäftshäuser“. Sie mit den amtlichen ETW-Preisen zu vergleichen wäre ein
+Kategorienfehler; die Auswertung verhindert das, indem sie für die Ebene „lage“
+und für Spannen grundsätzlich keine Prozentabweichung rechnet. Die
+Kaufpreisfaktoren stehen auf denselben Seiten und sind noch nicht übernommen.
+
+Zweiter Platzhalter bleibt vdpResearch — transaktionsbasiert und damit belastbarer
+als Portalzahlen.
 
 **Wiesbadens Bezirkswerte sind gerechnet, nicht abgelesen** (nach Kauffällen
 gewichtet aus den Zellen). Der Bericht gewichtet nach Fläche und nennt deshalb
@@ -106,15 +119,34 @@ Bild gegengeprüft, ohne Abweichung.
 
 ### Verteilung
 
-**Marktplatz ohne feste Versionsnummer.** Claude Code nimmt dann den Commit-Stand
-als Version — jeder Push gilt als neue Fassung, kein Hochzählen nötig.
+**Marktplatz ohne feste Versionsnummer — das gilt aber nur für den
+Marktplatz-Eintrag.** Die `version` in `plugins/marktdaten-wohnen/.claude-plugin/plugin.json`
+ist sehr wohl tragend: Claude Code legt die heruntergeladene Fassung unter
+`~/.claude/plugins/cache/eight-estates/marktdaten-wohnen/<version>/` ab und
+schreibt Version *und* Commit-SHA nach `installed_plugins.json`. Die Annahme,
+Pushes allein genügten, war falsch — **jede Veröffentlichung braucht ein
+Hochzählen in plugin.json**.
 
 **`autoUpdate: true` in `~/.claude/settings.json`.** Eigene Marktplätze haben die
 automatische Aktualisierung standardmäßig *aus*; das war der Grund, warum nie
 etwas von allein ankam.
 
 **Repository öffentlich.** Löst Zugriffs- und Aktualisierungsfragen. Inhaltlich
-unkritisch, solange in `maklerdaten.json` nur öffentliche Quellenangaben stehen.
+unkritisch, solange dort nur öffentliche Quellenangaben stehen.
+
+**Selbst gepflegte Zahlen liegen ausserhalb des Plugins**, in
+`~/.config/marktdaten-wohnen/quellen.json`. Grund: `claude plugin update`
+ersetzt das Plugin-Verzeichnis vollständig — eine im Plugin gepflegte Datei wäre
+nach der nächsten Aktualisierung weg. Die Datei im Plugin ist nur noch Vorlage
+und wird beim ersten Lauf einmalig kopiert. Suchreihenfolge: `--daten`, dann
+`MARKTDATEN_QUELLEN`, dann die Nutzerdatei.
+
+**Abweichungen nur gegen dasselbe Gebiet.** Fremdzahlen werden gegen den
+amtlichen Wert *derselben* Stadt gerechnet, bei `"ebene": "stadtteil"` gegen den
+Wert desselben Stadtteils. Gibt es keinen passenden amtlichen Wert — etwa bei
+Frankfurt —, zeigt die Seite bewusst keine Prozentzahl. Vorher lief jede
+Abweichung gegen den Hamburger Gesamtwert; das wäre beim ersten
+Nicht-Hamburg-Eintrag still zu einer falschen Zahl geworden.
 
 ## Fallstricke, die Zeit gekostet haben
 
@@ -129,6 +161,12 @@ unkritisch, solange in `maklerdaten.json` nur öffentliche Quellenangaben stehen
   Behoben: bei der Leittabelle wird OCR auch dann versucht.
 - **Google Drive kann Lesezugriffe minutenlang blockieren**, während es synct.
   Deshalb liegt alles Rechenintensive außerhalb.
+- **Eine Sperrseite kann als PDF im Zwischenspeicher landen.** Im Cache lag eine
+  `FFM2026.pdf` mit 6 KB — die Cloudflare-Seite „Just a moment…“, gespeichert
+  unter PDF-Namen. `download_pdf` prüft inzwischen auf `%PDF` und schreibt so
+  etwas nicht mehr; der Zwischenspeicher-Treffer und `--pdf` prüften aber weiter
+  ungefragt. Beides prüft jetzt den Dateikopf, sonst fällt der Fehler erst beim
+  Parsen als kryptische pdfminer-Meldung auf.
 
 ## Offene Punkte
 
@@ -137,26 +175,66 @@ Kauffälle-Seite rund fünf kleine Zahlen; Summe 5.479 statt ausgewiesener 5.543
 Die Preise sind davon nicht betroffen. Für 2025 fehlen deshalb die Fallzahlen je
 Stadtteil — im Tooltip bleibt das Feld leer.
 
-**Frankfurt fehlt.** Cloudflare-Prüfung beim Download; Bot-Schutz wird nicht
-umgangen. Machbar wäre nur der Weg über ein von Hand geladenes PDF mit `--pdf`.
-Ungeprüft ist, ob der Frankfurter Bericht überhaupt Stadtteiltabellen führt.
+**Frankfurt fehlt — und `--pdf` ist entgegen früherer Notiz kein Ausweg.**
+Zwei Hürden, nicht eine:
 
-**Automatische Aktualisierung noch nicht bewiesen.** Einstellungen sind gesetzt
-und die Dokumentation ist eindeutig, aber die Prüfung läuft mit bis zu zehn
-Minuten Verzögerung nach Sitzungsstart. Beim nächsten Start eines Kollegen sollte
-sich zeigen, ob die neue Fassung von allein ankommt.
+1. Cloudflare-Prüfung beim Download. Bot-Schutz wird nicht umgangen.
+2. Es gibt keinen Frankfurter Tabellenleser. `--pdf` nutzt immer die
+   Tabellendefinitionen der gewählten Quelle, und `SOURCES` enthält allein
+   Hamburg — ein Frankfurter Bericht bricht dort mit „Tabelle nicht gefunden“ ab.
+
+Ein von Hand geladenes PDF genügt also nicht; nötig wäre zusätzlich ein eigener
+Leser nach dem Muster von Wiesbaden und Kiel. Die frühere Notiz behauptete das
+Gegenteil und stand so auch im Skill — beides ist korrigiert. Weiterhin
+ungeprüft ist, ob der Frankfurter Bericht überhaupt Stadtteiltabellen führt;
+diese Frage gehört vor jede Parserarbeit, nicht danach.
+
+**Automatische Aktualisierung kommt nicht an — Befund vom 25.08.2026.** Nicht
+mehr „unbewiesen“, sondern nachweislich hängend. Auf diesem Rechner:
+
+- `installed_plugins.json` führt weiterhin **1.1.0**, Commit `b35b71e`,
+  zuletzt aktualisiert am 24.08. um 14:52. Das ist der Stand *vor* der
+  Texterkennung — dieser Rechner arbeitet im Plugin also mit altem Code.
+- Der Marktplatz-Klon dagegen ist aktuell (`0420e6f`, 25.08. um 10:09). Die
+  Marktplatz-Aktualisierung funktioniert also.
+- Im Cache liegt **1.2.0 bereits vollständig** (geladen 25.08. um 12:09), trägt
+  aber `.orphaned_at` (12:20) und kein `.in_use`. Die Fassung wurde geholt, aber
+  nie aktiv geschaltet, und wurde dann als verwaist markiert.
+
+Heruntergeladen wird also, umgeschaltet nicht. Nächster Schritt: im Terminal
+`claude plugin update marktdaten-wohnen@eight-estates` ausführen und danach
+`installed_plugins.json` erneut ansehen. Zieht der Zeiger dort auf die neue
+Version, liegt es allein am automatischen Umschalten; bleibt er stehen, stimmt
+etwas mit dem Marktplatz-Eintrag nicht.
 
 **Wiesbaden und Kiel haben nur einen Jahrgang.** Die Verlaufsansicht ist dort
 entsprechend dünn. Ältere Ausgaben liegen bei Wiesbaden unter derselben Adresse
 (2025 abrufbar), bei Kiel auf der Übersichtsseite bis 2020.
+
+**Colliers-Kaufpreisfaktoren ungenutzt.** Stehen je Stadt und Lagequalität auf
+denselben Seiten wie die übernommenen Preise. Gleiche Struktur, andere Einheit —
+mit dem jetzigen Schema ein reiner Dateneintrag, kein Codeaufwand.
 
 **MFH-Lagetabellen aus Hamburg ungenutzt.** Abschnitt 2.3.4 und 2.3.5 führen
 Preise und Ertragsfaktoren nach Lagequalität. Die Zahlen stehen aufrecht und sind
 lesbar, nur die Zeilenbeschriftungen sind gedreht. Wäre mit überschaubarem
 Aufwand nachzuholen.
 
-**Colliers und vdpResearch ohne Zahlen.** Platzhalter stehen in
-`maklerdaten.json`. Sobald der Report vorliegt, dort eintragen.
+**vdpResearch ohne Zahlen.** Platzhalter in
+`~/.config/marktdaten-wohnen/quellen.json` (Vorlage im Plugin). Beim Eintragen
+`seite` und `erfasst` setzen, damit am Wert selbst ablesbar bleibt, woher er
+stammt und wer ihn geprüft hat.
+
+**Eigentumswohnungspreise Dritter fehlen weiterhin.** Colliers liefert sie nicht
+(siehe oben). Für den Quervergleich zu den amtlichen ETW-Preisen bräuchte es eine
+andere Quelle; vdpResearch wäre der nächste Kandidat.
+
+**Die Nutzerdatei verdeckt die Vorlage dauerhaft.** Wer einmal
+`quellen.json` hat, bekommt spätere Ergänzungen aus dem Plugin nicht mehr —
+die eigene Datei gewinnt immer. Für die Colliers-Zahlen ist das umgangen, indem
+sie in **beiden** Dateien stehen. Auf Dauer bräuchte es ein Zusammenführen
+(Vorlage als Grundstock, Nutzerdatei nur als Ergänzung) statt eines
+Entweder-oder. Vor der nächsten verteilten Datenpflege zu klären.
 
 **Falls der Gutachterausschuss das PDF korrigiert**, wird die Texterkennung für
 Hamburg 2025 überflüssig — dann greift der normale Textweg wieder von selbst.

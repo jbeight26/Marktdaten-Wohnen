@@ -21,27 +21,43 @@ Auf daten-hamburg.de liegen die Berichte **IMB2022 bis IMB2026**; ältere Jahre
 sind dort nicht abrufbar. Ein Bericht weist jeweils das Vorjahr aus: IMB2025
 enthält die Preise für 2024.
 
-**Aus IMB2026 lassen sich die Stadtteilwerte nicht auslesen.** Die Tabellen
-stehen dort im Bericht, auf denselben Seiten wie im Vorjahr, sind aber als
-Vektorkonturen gesetzt statt als Text — 32 der 214 Seiten sind so gesetzt,
-im Vorjahr war es eine. Seite 44 enthält 2025 noch 1.845 Textzeichen bei 60
-Kurvenobjekten, 2026 nur 38 Textzeichen bei 2.546 Kurven.
+**IMB2026 setzt die Stadtteiltabellen als Grafik.** Die Tabellen stehen dort im
+Bericht, auf denselben Seiten wie im Vorjahr, sind aber als Vektorkonturen
+gesetzt statt als Text — 32 der 214 Seiten sind so gesetzt, im Vorjahr war es
+eine. Seite 44 enthält 2025 noch 1.845 Textzeichen bei 60 Kurvenobjekten, 2026
+nur 38 Textzeichen bei 2.546 Kurven. `--page` hilft dort nicht: es gibt auf
+diesen Seiten keinen Text zum Auslesen.
 
-Sage das, wenn jemand nach dem fehlenden Jahr fragt, und sage auch, dass
-`--page` hier nicht hilft: es gibt keinen Text zum Auslesen. Nötig wäre OCR
-oder eine Anfrage beim Gutachterausschuss. Das Skript überspringt den Jahrgang
-für die Stadtteilansicht, nutzt ihn aber für Lagematrix und Indexreihen —
-darüber kommt das Preisjahr 2025 dennoch in die Auswertung.
+**Das Preisjahr 2025 stammt deshalb aus einer Texterkennung.** Zwei
+Erkennungsmodelle lesen die Seite unabhängig voneinander; übernommen wird ein
+Wert nur, wenn beide ihn gleich lesen. Abgeglichen wird über die Position im
+Bild, nicht über den Stadtteilnamen — das schnelle Modell liest Ziffern
+zuverlässig, verstümmelt aber Umlaute. Ergebnis: 76 der 104 Stadtteile mit
+Preis, Gesamtwert 5.808 €/m². Zusätzlich wurden 19 Werte von Hand am Bild
+gegengeprüft, ohne Abweichung.
 
-Damit umfasst die Stadtteilreihe die Preisjahre **2021 bis 2024**.
+Zwei Einschränkungen gelten allein für 2025 und gehören in jede Antwort, die
+dieses Jahr zitiert:
+
+- **Keine Kauffälle je Stadtteil.** Die Texterkennung wird nur auf die
+  Preistabelle angewandt, nicht auf die Fallzahlen. Für 2025 bleibt das Feld
+  leer; die Stichprobengröße ist für dieses Jahr nicht zu beurteilen. Dasselbe
+  gilt für die Verkaufszahlen der Mehrfamilienhäuser.
+- **„*" und „–" sind nicht unterscheidbar.** Wo kein Wert steht, liest die
+  Texterkennung nichts — welcher der beiden Gründe vorliegt, bleibt offen.
+
+Damit umfasst die Stadtteilreihe die Preisjahre **2021 bis 2025**: 2021 bis 2024
+aus dem Text der Berichte, 2025 aus der Texterkennung. Läuft das Skript mit
+`--no-ocr`, oder ist die Texterkennung nicht eingerichtet — sie setzt macOS
+voraus —, endet die Reihe bei 2024.
 
 ## Was es je Stadtteil gibt
 
 | Angabe | Eigentumswohnungen | Mehrfamilienhäuser |
 |---|---|---|
-| Kaufpreis €/m² | ja, 2021–2024 | **nein** |
-| Anzahl Kauffälle | ja | ja, als Verkaufszahlen |
-| Stadtteilfaktor | ja | ja |
+| Kaufpreis €/m² | ja, 2021–2025 | **nein** |
+| Anzahl Kauffälle | ja, 2021–2024 | ja, 2021–2024, als Verkaufszahlen |
+| Stadtteilfaktor | ja, 2021–2025 | ja, 2021–2025 |
 
 Mehrfamilienhäuser werden über Ertragsfaktoren bewertet, nicht über
 Quadratmeterpreise je Lage. Für diese Objektart zeigt das Balkendiagramm
@@ -94,12 +110,16 @@ Das ist kein Widerspruch, sondern der Zweck eines Index.
 
 ## Prüfung der Extraktion
 
-Zwei unabhängige Kontrollen laufen gegen jeden Jahrgang:
+Zwei unabhängige Kontrollen laufen gegen jeden textbasierten Jahrgang:
 
 1. Gegenprobe gegen eine zweite, textbasierte Extraktion — null Wertabweichungen.
 2. Summenprobe: die addierten Kauffälle je Stadtteil treffen exakt den im
    Bericht ausgewiesenen Gesamtwert. Ein übersehener Stadtteil würde die Summe
    zerstören.
+
+Für 2025 greift keine von beiden: es gibt weder eine zweite Textquelle noch
+Fallzahlen zum Aufsummieren. An ihre Stelle treten die Übereinstimmung zweier
+Erkennungsmodelle und die Stichprobe von Hand.
 
 ## Wiesbaden
 
@@ -137,9 +157,17 @@ Geprüft: null Abweichungen gegen den Rohtext der Stadtteiltabelle.
 
 ## Frankfurt
 
-**Nicht eingebunden.** Die Stadt schützt ihre Downloads mit einer
-JavaScript-Prüfung von Cloudflare. Bot-Schutz wird nicht umgangen. Wer Frankfurt
-braucht, lädt das PDF im Browser und übergibt es mit `--pdf`.
+**Nicht eingebunden**, aus zwei voneinander unabhängigen Gründen:
+
+1. Der Download ist durch eine JavaScript-Prüfung von Cloudflare geschützt.
+   Bot-Schutz wird nicht umgangen.
+2. Es gibt keinen Frankfurter Tabellenleser. `--pdf` nutzt immer die
+   Tabellendefinitionen der gewählten Quelle, und die einzige Quelle ist
+   Hamburg; ein Frankfurter Bericht bricht dort mit „Tabelle nicht gefunden" ab.
+
+Ein von Hand geladenes PDF genügt also **nicht**. Nötig wäre zusätzlich ein
+eigener Leser nach dem Muster von Wiesbaden und Kiel. Verweise nicht auf
+`--pdf` als Ausweg — er führt in eine Sackgasse.
 
 ## Städte vergleichen
 
@@ -151,8 +179,12 @@ nur mit Einordnung.
 
 ## Eine weitere Stadt ergänzen
 
-Der Kern-Parser ist nicht stadtspezifisch. Eine weitere Stadt wird über einen Eintrag
-in `SOURCES` in `scripts/imb.py` ergänzt: URL-Muster, Bezeichnung der
-Gebietseinheit und die Überschriften der Tabellen. Voraussetzung ist, dass der
-dortige Gutachterausschuss seinen Bericht als PDF unter einer nach Jahr
-aufgebauten Adresse veröffentlicht.
+Es gibt zwei Wege; welcher passt, entscheidet der Aufbau des Berichts.
+
+- **Eintrag in `SOURCES`** in `scripts/imb.py` — URL-Muster, Bezeichnung der
+  Gebietseinheit und die Überschriften der Tabellen. Setzt voraus, dass der
+  Bericht unter einer nach Jahr aufgebauten Adresse liegt *und* seine Tabellen
+  wie die Hamburger aufgebaut sind: Gebiet links, Wert rechtsbündig.
+- **Eigener Leser in `scripts/staedte.py`** — der Regelfall. So sind Wiesbaden
+  und Kiel eingebunden. Die Berichte sind strukturell verschieden; gemeinsam ist
+  nur das Ausgabeformat `CityDataset`.
