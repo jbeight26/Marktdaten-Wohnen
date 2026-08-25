@@ -27,6 +27,9 @@ Prüfe, ob die Arbeitsumgebung existiert. Lege sie andernfalls einmalig an:
 VENV="$HOME/.venvs/marktdaten-wohnen"
 if [ ! -x "$VENV/bin/python" ]; then
   python3 -m venv "$VENV" && "$VENV/bin/pip" install -q -r "${CLAUDE_PLUGIN_ROOT}/scripts/requirements.txt"
+  # Texterkennung (nur macOS): ohne sie fehlt Hamburg 2025
+  "$VENV/bin/pip" install -q -r "${CLAUDE_PLUGIN_ROOT}/scripts/requirements-ocr.txt" \
+    || echo "Texterkennung nicht verfügbar — Hamburg 2025 bleibt leer."
 fi
 ```
 
@@ -94,6 +97,10 @@ Kurzfassung:
   nur Verkaufszahlen, Stadtteilfaktoren und einen Preisindex.
 - **Nicht jeder Stadtteil hat einen Wert.** Bei weniger als 3 Kauffällen weist
   der Bericht nichts aus.
+- **Hamburg 2025 stammt aus einer Texterkennung.** Der Bericht 2026 setzt diese
+  Tabelle als Grafik. Zwei Erkennungsmodelle mussten übereinstimmen, sonst wurde
+  nichts übernommen. Sage das dazu, wenn jemand Zahlen für 2025 zitiert, und
+  weise darauf hin, dass die Unterscheidung zwischen „*" und „–" dabei entfällt.
 - **Wiesbadens Bezirkswerte sind gerechnet**, nicht abgelesen: gewichtet nach
   Kauffällen aus den Zellen. Der Bericht gewichtet nach Fläche und nennt deshalb
   leicht andere Gesamtwerte. Sage das, wenn jemand Wiesbadener Zahlen zitiert.
