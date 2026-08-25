@@ -3027,14 +3027,6 @@ def render_html(report: Report, live: bool = False, command: str = "python imb.p
 
 <section class="card" id="missing"></section>
 
-<section class="card" id="city-verlauf-card" hidden>
-  <h2 id="city-verlauf-titel"></h2>
-  <p class="section-note" id="city-verlauf-sub"></p>
-  <div class="index-wrap" id="city-verlauf-plot"></div>
-  <p class="legend-note" id="city-verlauf-legende"></p>
-  <p class="matrix-note" id="city-verlauf-note"></p>
-</section>
-
 <section class="card" id="city-card" hidden>
   <h2 id="city-title"></h2>
   <p class="section-note" id="city-sub"></p>
@@ -3062,6 +3054,14 @@ def render_html(report: Report, live: bool = False, command: str = "python imb.p
   <p class="matrix-note" id="city-note"></p>
   <div class="missing-group" id="city-missing"></div>
   <div id="city-extra"></div>
+</section>
+
+<section class="card" id="city-verlauf-card" hidden>
+  <h2 id="city-verlauf-titel"></h2>
+  <p class="section-note" id="city-verlauf-sub"></p>
+  <div class="index-wrap" id="city-verlauf-plot"></div>
+  <p class="legend-note" id="city-verlauf-legende"></p>
+  <p class="matrix-note" id="city-verlauf-note"></p>
 </section>
 
 <section class="card" id="standard-card">
