@@ -270,7 +270,7 @@ footer {
     <dl class="facts">
       <div class="fact"><dt>Städte</dt><dd>Hamburg (104 Stadtteile), Wiesbaden
         (26 Stadtbezirke), Kiel (26 Stadtteile)</dd></div>
-      <div class="fact"><dt>Zeitraum</dt><dd>Preisjahre 2021 bis 2025</dd></div>
+      <div class="fact"><dt>Zeitraum</dt><dd>Hamburg 2021–2025, Wiesbaden und Kiel 2025</dd></div>
       <div class="fact"><dt>Objektarten</dt><dd>Eigentumswohnungen, Mehrfamilienhäuser</dd></div>
       <div class="fact"><dt>Quelle</dt><dd>Gutachterausschüsse der jeweiligen Stadt</dd></div>
       <div class="fact"><dt>Voraussetzung</dt><dd>Claude Code und Python 3.10 oder neuer</dd></div>
@@ -356,9 +356,11 @@ footer {
         gewichtet nach Fläche und nennt deshalb leicht andere Gesamtwerte.</li>
       <li><b>Frankfurt fehlt.</b> Die Stadt sperrt automatisierte Downloads.
         Frankfurter Zahlen gehen nur über ein von Hand geladenes PDF.</li>
-      <li><b>Hamburg 2025 fehlt auf Stadtteilebene.</b> Der Bericht 2026 setzt
-        seine Tabellen als Grafik statt als Text — auslesen lässt sich das
-        nicht. Gesamtstädtische Reihen für 2025 sind vorhanden.</li>
+      <li><b>Hamburg 2025 stammt aus einer Texterkennung.</b> Der Bericht 2026
+        setzt seine Tabellen als Grafik. Das Werkzeug liest sie mit zwei
+        unabhängigen Erkennungsmodellen und übernimmt nur, worin beide
+        übereinstimmen. Die Auswertung kennzeichnet dieses Jahr; die
+        Unterscheidung zwischen „*" und „–" entfällt dabei.</li>
     </ul>
     <p>Und: die Gutachterausschüsse grenzen unterschiedlich ab — Stadtteil gegen
       Stadtbezirk, andere Segmente. Innerhalb einer Stadt sind Vergleiche
@@ -387,8 +389,12 @@ footer {
       </div>
       <div>
         <dt>Eine neue Fassung ist verfügbar</dt>
-        <dd>Aktualisierungen kommen nicht von allein:
-          <code class="cmd">/plugin marketplace update eight-estates</code></dd>
+        <dd>Aktualisierungen kommen nicht von allein — und <code>install</code>
+          genügt nicht, es muss <code>update</code> sein:
+          <code class="cmd">claude plugin marketplace update eight-estates</code>
+          <code class="cmd">claude plugin update marktdaten-wohnen@eight-estates</code>
+          Danach Claude neu starten und mit <code>claude plugin list</code> prüfen,
+          ob dort die neue Version steht.</dd>
       </div>
     </dl>
   </section>
