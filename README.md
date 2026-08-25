@@ -1,7 +1,7 @@
 # Marktdaten Wohnen
 
 Amtliche Immobilienmarktberichte der Gutachterausschüsse auswerten und als
-interaktive Seite darstellen. Hamburg, Wiesbaden und Kiel.
+interaktive Seite darstellen. Hamburg, Wiesbaden, Kiel und Frankfurt am Main.
 
 Dieser Ordner ist zugleich das Claude-Plugin, der Marktplatz zum Verteilen und
 das Arbeitswerkzeug — alles an einer Stelle, jede Datei nur einmal.
@@ -54,10 +54,12 @@ Auswertungen/                        erzeugte Dateien (nicht im Repository)
 | Hamburg | 104 Stadtteile | Bestand (ohne Neubau) | 2021–2025 |
 | Wiesbaden | 26 Stadtbezirke | Neubau, Umwandlung, Weiterverkauf | 2025 |
 | Kiel | 26 Stadtteile | Weiterverkauf | 2025 |
+| Frankfurt am Main | 15 Grundbuchbezirke | Bestand, Neubau, Altbau | 2021–2025 |
 
-Frankfurt fehlt aus zwei Gründen: die Stadt sperrt automatisierte Downloads mit
-einer Cloudflare-Prüfung, und es gibt keinen Frankfurter Tabellenleser — `--pdf`
-allein genügt deshalb nicht. Für Frankfurt liegen nur Zahlen Dritter vor.
+Frankfurt ist eingebunden, aber ohne automatischen Abruf: die Stadt sperrt
+Downloads mit einer Cloudflare-Prüfung. Die Berichte müssen von Hand als
+`~/.cache/immobilienmarktberichte/FFM<Jahr>.pdf` abgelegt werden und sind nicht
+Teil des Repositorys.
 
 ## Hamburg 2025 kommt aus einer Texterkennung
 

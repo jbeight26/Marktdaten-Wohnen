@@ -1,7 +1,7 @@
 {
   "name": "marktdaten-wohnen",
-  "version": "1.3.0",
-  "description": "Amtliche Immobilienmarktberichte der Gutachterausschüsse abrufen, Kaufpreise je Stadtteil für Hamburg, Wiesbaden und Kiel auswerten und als interaktive Seite darstellen.",
+  "version": "1.6.0",
+  "description": "Amtliche Immobilienmarktberichte der Gutachterausschüsse abrufen, Kaufpreise je Stadtteil für Hamburg, Wiesbaden, Kiel und Frankfurt auswerten und als interaktive Seite darstellen.",
   "author": {
     "name": "eight estates"
   },
@@ -12,6 +12,7 @@
     "hamburg",
     "wiesbaden",
     "kiel",
+    "frankfurt",
     "gutachterausschuss"
   ]
 }

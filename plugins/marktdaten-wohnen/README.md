@@ -15,8 +15,10 @@ Sag Claude zum Beispiel:
 
 Das Ergebnis ist eine eigenständige HTML-Seite mit:
 
-- Kaufpreisen je Stadtteil, absteigend sortiert, mit Favoriten und Suche
-- Verlaufsansicht über alle Jahrgänge mit Preisspanne je Stadtteil
+- Kaufpreisen je Gebiet, absteigend sortiert, mit Favoriten und Suche — in
+  **jeder** Stadt, Favoriten je Stadt getrennt gespeichert
+- Verlaufsansicht über alle Jahrgänge mit Preisspanne je Gebiet, für Hamburg
+  und Frankfurt
 - Kaufpreisen nach Baujahr und Lagequalität als Farbmatrix
 - Bestand gegen Neubau über die normierte Standardwohnung
 - Preisindizes für Eigentumswohnungen und Mehrfamilienhäuser
@@ -46,11 +48,22 @@ Abgedeckt sind drei Städte:
 | Hamburg | 104 Stadtteile | Bestand (ohne Neubau) | 2021–2025 |
 | Wiesbaden | 26 Stadtbezirke | Neubau, Umwandlung, Weiterverkauf | 2025 |
 | Kiel | 26 Stadtteile | Weiterverkauf | 2025 |
+| Frankfurt am Main | 15 Grundbuchbezirke | Bestand, Neubau, Altbau | 2021–2025 |
 
-Oben in der Seite schaltet man zwischen den Städten um. Frankfurt fehlt aus zwei
-Gründen: die Stadt sperrt automatisierte Downloads mit einer Cloudflare-Prüfung,
-und es gibt keinen Frankfurter Tabellenleser. Ein von Hand geladenes PDF genügt
-deshalb nicht.
+Oben in der Seite schaltet man zwischen den Städten um.
+
+**Frankfurt braucht einen Handgriff.** Die Stadt sperrt automatisierte Downloads
+mit einer Cloudflare-Prüfung, deshalb versucht das Werkzeug dort gar keinen
+Abruf. Es liest, was von Hand abgelegt wurde:
+
+```
+~/.cache/immobilienmarktberichte/FFM<Jahr>.pdf
+```
+
+Die Berichte lädt man einmalig beim Frankfurter Gutachterausschuss und legt sie
+dort ab — vier Berichte (2023–2026) ergeben die Reihe 2021–2025, weil jeder zwei
+Jahrgänge führt. Liegt nichts da, wird Frankfurt übersprungen; die anderen Städte
+funktionieren unverändert. **Die Berichte werden nicht mitgeliefert.**
 
 Wichtige Grenzen: Für Neubau gibt es keine Werte je Stadtteil, für
 Mehrfamilienhäuser keine Quadratmeterpreise je Stadtteil, und Stadtteile mit

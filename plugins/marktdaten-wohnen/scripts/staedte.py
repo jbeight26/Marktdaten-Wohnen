@@ -20,12 +20,13 @@ import collections
 import io
 import re
 from dataclasses import dataclass, field
+from typing import Sequence
 
 import pdfplumber
 
 from imb import (
     BROWSER_HEADERS, DownloadError, ExtractionError,
-    _group_rows, cache_hit, download_pdf,
+    _group_rows, cache_hit, download_pdf, is_pdf,
 )
 
 
@@ -50,6 +51,20 @@ class Segment:
 
 
 @dataclass
+class CityYear:
+    """Ein Preisjahr einer Zusatzstadt.
+
+    Wiesbaden und Kiel fuehren genau einen; Frankfurt fuenf, weil jeder Bericht
+    zwei Jahrgaenge nebeneinanderstellt.
+    """
+
+    data_year: int
+    report_year: int
+    source_page: str = ""
+    segments: list[Segment] = field(default_factory=list)
+
+
+@dataclass
 class CityDataset:
     key: str
     city: str
@@ -59,8 +74,12 @@ class CityDataset:
     data_year: int
     pdf_url: str
     source_page: str = ""
+    # Das neueste Jahr -- die Ansicht startet hier, und aeltere Leser, die
+    # keine Jahrgaenge kennen, kommen damit unveraendert zurecht.
     segments: list[Segment] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    # Alle Preisjahre, aeltestes zuerst. Leer bei einjaehrigen Staedten.
+    years: list[CityYear] = field(default_factory=list)
 
 
 # ===========================================================================
@@ -411,3 +430,202 @@ def fetch_kiel(cache_dir, year: int, url: str, refresh: bool = False):
     if cache_hit(target, refresh):
         return target
     return download_pdf(url, target)
+
+
+# ===========================================================================
+# Frankfurt am Main
+# ===========================================================================
+#
+# Frankfurt kommt NICHT aus dem Netz: die Stadt schuetzt ihre Downloads mit
+# einer Cloudflare-Pruefung, und Bot-Schutz wird nicht umgangen. Die Berichte
+# muessen von Hand in den Zwischenspeicher gelegt werden, als FFM<Jahr>.pdf.
+#
+# Aufbau der Leittabelle (Abschnitt 3.7.3): 15 Gruppen von Grundbuchbezirken,
+# je Gruppe zwei Jahrgaenge, je Jahrgang sechs Baujahrsklassen mit Anzahl und
+# Preis. Anders als in Hamburg steht der Gebietsname in Klammern hinter den
+# Bezirksnummern -- und faellt bei langen Namen in die naechste Zeile.
+
+FR_HEADING = re.compile(
+    r"Mittlere\s+Preise\s+für\s+Eigentumswohnungen\s+nach\s+Grundbuchbezirken")
+FR_ZEILE = re.compile(r"^(20\d{2})\s+(.+)$")
+FR_GRUPPE = re.compile(r"^Grundbuchbezirke?\s+(.+)$")
+FR_KLAMMER = re.compile(r"\(([^)]*)\)")
+FR_FEHLT = {"-", "–", "—", "..", "."}
+
+# Reihenfolge wie im Bericht. "Neubau" ist die letzte Spalte und wird getrennt
+# ausgewiesen -- die vorletzte heisst ausdruecklich "ab 1991 o. Neubauten".
+FR_KLASSEN = ("bis 1918", "1919–1949", "1950–1977", "1978–1990",
+              "ab 1991 ohne Neubau", "Neubau")
+FR_BESTAND = FR_KLASSEN[:-1]
+
+
+def _fr_zahl(text: str) -> int | None:
+    if text in FR_FEHLT:
+        return None
+    try:
+        return int(text.replace(".", ""))
+    except ValueError:
+        return None
+
+
+def _fr_seite(pdf) -> int:
+    """Die Seite mit den meisten Datenzeilen gewinnt.
+
+    Der Bericht nennt die Ueberschrift auch im Inhaltsverzeichnis, und der
+    Jahrgang 2023 fuehrt zusaetzlich einen Abschnitt 3.7.3.1 ohne Zahlen.
+    """
+    beste, punkte = -1, 0
+    for i, page in enumerate(pdf.pages):
+        text = page.extract_text() or ""
+        if not FR_HEADING.search(text):
+            continue
+        treffer = sum(1 for z in text.splitlines() if FR_ZEILE.match(z.strip()))
+        if treffer > punkte:
+            beste, punkte = i, treffer
+    if beste < 0 or punkte == 0:
+        raise ExtractionError(
+            "Tabelle 3.7.3 (Preise nach Grundbuchbezirken) nicht gefunden")
+    return beste
+
+
+def _fr_parse(page) -> dict[int, dict[str, list[tuple[int | None, int | None]]]]:
+    """Liefert {Jahr: {Gebiet: [(Anzahl, Preis) je Baujahrsklasse]}}."""
+    zeilen = [z.strip() for z in (page.extract_text() or "").splitlines()]
+    daten: dict[int, dict[str, list]] = {}
+    gebiet = None
+
+    for i, zeile in enumerate(zeilen):
+        gruppe = FR_GRUPPE.match(zeile)
+        if gruppe:
+            klammer = FR_KLAMMER.search(zeile)
+            if not klammer and i + 1 < len(zeilen):
+                # Langer Name -- er steht allein in der Folgezeile.
+                klammer = FR_KLAMMER.search(zeilen[i + 1])
+            if klammer:
+                gebiet = re.sub(r"\s*,\s*", ", ", klammer.group(1).strip())
+            continue
+
+        werte = FR_ZEILE.match(zeile)
+        if not werte or gebiet is None:
+            continue
+        teile = werte.group(2).split()
+        if len(teile) != 2 * len(FR_KLASSEN):
+            continue
+        paare = [(_fr_zahl(teile[k]), _fr_zahl(teile[k + 1]))
+                 for k in range(0, len(teile), 2)]
+        daten.setdefault(int(werte.group(1)), {})[gebiet] = paare
+
+    if not daten:
+        raise ExtractionError("Keine Datenzeilen in der Frankfurter Leittabelle")
+    return daten
+
+
+def _fr_segment(key: str, label: str, spalten: Sequence[int],
+                gebiete: dict[str, list], note: str = "") -> Segment:
+    """Fasst die gewaehlten Baujahrsspalten je Gebiet zusammen.
+
+    Gewichtet wird nach Kauffaellen -- ein Mittel aus 3 und aus 122 Verkaeufen
+    darf nicht gleich schwer wiegen.
+    """
+    seg = Segment(key=key, label=label, unit="€/m²", note=note)
+    summe = anzahl_gesamt = 0
+    for name, paare in gebiete.items():
+        gewicht = wert = 0
+        for spalte in spalten:
+            anz, preis = paare[spalte]
+            if anz and preis:
+                gewicht += anz
+                wert += anz * preis
+        if gewicht:
+            mittel = round(wert / gewicht)
+            seg.areas[name] = {"p": mittel, "c": gewicht, "m": None}
+            summe += wert
+            anzahl_gesamt += gewicht
+        else:
+            seg.areas[name] = {"p": None, "c": None, "m": "*"}
+    if anzahl_gesamt:
+        seg.total = round(summe / anzahl_gesamt)
+        seg.total_count = anzahl_gesamt
+    return seg
+
+
+def _fr_jahrgang(gebiete: dict[str, list], jahr: int, report_year: int,
+                 seite: int) -> CityYear:
+    bestand = list(range(len(FR_BESTAND)))
+    return CityYear(
+        data_year=jahr,
+        report_year=report_year,
+        source_page=f"S. {seite}, Abschnitt 3.7.3",
+        segments=[
+            _fr_segment("bestand", "Bestand (ohne Neubau)", bestand, gebiete,
+                        note="Über alle Baujahrsklassen außer Neubau, nach "
+                             "Kauffällen gewichtet."),
+            _fr_segment("neubau", "Neubau", [len(FR_KLASSEN) - 1], gebiete),
+            _fr_segment("altbau", "Altbau (bis 1918)", [0], gebiete),
+        ],
+    )
+
+
+def extract_frankfurt(cache_dir) -> CityDataset:
+    """Liest alle abgelegten Frankfurter Berichte zu einer Stadt zusammen.
+
+    Jeder Bericht fuehrt zwei Preisjahre, aufeinanderfolgende Berichte
+    ueberschneiden sich also um eines. Bei Ueberschneidung gewinnt der neuere
+    Bericht -- er enthaelt die spaeter korrigierten Zahlen.
+    """
+    berichte = find_frankfurt(cache_dir)
+    if not berichte:
+        raise DownloadError(
+            f"kein Bericht abgelegt — FFM<Jahr>.pdf nach {cache_dir} legen")
+
+    jahrgaenge: dict[int, CityYear] = {}
+    for report_year in sorted(berichte):              # alt zuerst, neu gewinnt
+        try:
+            with pdfplumber.open(io.BytesIO(berichte[report_year].read_bytes())) as pdf:
+                seite = _fr_seite(pdf)
+                daten = _fr_parse(pdf.pages[seite])
+        except (ExtractionError, OSError) as exc:
+            print(f"(Bericht {report_year} übersprungen: {exc}) ", end="", flush=True)
+            continue
+        for jahr, gebiete in daten.items():
+            jahrgaenge[jahr] = _fr_jahrgang(gebiete, jahr, report_year, seite + 1)
+
+    if not jahrgaenge:
+        raise ExtractionError("kein Jahrgang auswertbar")
+
+    reihe = [jahrgaenge[j] for j in sorted(jahrgaenge)]
+    neueste = reihe[-1]
+    return CityDataset(
+        key="frankfurt",
+        city="Frankfurt am Main",
+        area_label="Grundbuchbezirk",
+        publisher="Gutachterausschuss für Immobilienwerte Frankfurt am Main",
+        report_year=neueste.report_year,
+        data_year=neueste.data_year,
+        pdf_url="",
+        source_page=neueste.source_page,
+        segments=neueste.segments,
+        years=reihe,
+        notes=[
+            "Frankfurt gliedert nach Grundbuchbezirken, nicht nach Stadtteilen; "
+            "die Namen in Klammern sind die Ortsteile darin.",
+            "Die Gebietswerte sind aus den Baujahrszellen nach Kauffällen "
+            "gewichtet gerechnet, nicht im Bericht abgelesen.",
+            "Der Bericht wird von Hand bereitgestellt — die Stadt sperrt "
+            "automatisierte Downloads.",
+        ],
+    )
+
+
+def find_frankfurt(cache_dir) -> dict[int, "Path"]:
+    """Von Hand abgelegte Frankfurter Berichte im Zwischenspeicher.
+
+    Erwartet FFM<Jahr>.pdf. Nicht-PDFs werden uebergangen: unter genau diesem
+    Namen ist schon einmal eine Cloudflare-Sperrseite gelandet.
+    """
+    treffer: dict[int, "Path"] = {}
+    for pfad in sorted(cache_dir.glob("FFM*.pdf")):
+        jahr = re.search(r"(20\d{2})", pfad.name)
+        if jahr and is_pdf(pfad):
+            treffer[int(jahr.group(1))] = pfad
+    return treffer

@@ -269,8 +269,10 @@ footer {
       <strong>notariell beurkundete Kaufverträge</strong> — keine Inseratspreise.</p>
     <dl class="facts">
       <div class="fact"><dt>Städte</dt><dd>Hamburg (104 Stadtteile), Wiesbaden
-        (26 Stadtbezirke), Kiel (26 Stadtteile)</dd></div>
-      <div class="fact"><dt>Zeitraum</dt><dd>Hamburg 2021–2025, Wiesbaden und Kiel 2025</dd></div>
+        (26 Stadtbezirke), Kiel (26 Stadtteile), Frankfurt am Main
+        (15 Grundbuchbezirke)</dd></div>
+      <div class="fact"><dt>Zeitraum</dt><dd>Hamburg und Frankfurt 2021–2025,
+        Wiesbaden und Kiel 2025</dd></div>
       <div class="fact"><dt>Objektarten</dt><dd>Eigentumswohnungen, Mehrfamilienhäuser</dd></div>
       <div class="fact"><dt>Quelle</dt><dd>Gutachterausschüsse der jeweiligen Stadt</dd></div>
       <div class="fact"><dt>Voraussetzung</dt><dd>Claude Code und Python 3.10 oder neuer</dd></div>
@@ -314,6 +316,7 @@ footer {
       <li>Wie haben sich die Preise seit 2021 entwickelt?</li>
       <li>Welche Stadtteile liegen unter 4.000 Euro pro Quadratmeter?</li>
       <li>Zeig mir die Kaufpreise in Wiesbaden</li>
+      <li>Was kosten Wohnungen im Frankfurter Westend?</li>
     </ul>
     <p>Bei Fragen nach einzelnen Zahlen antwortet Claude direkt. Bei einer
       Abfrage bekommst du eine eigenständige HTML-Datei, die du weitergeben
@@ -323,17 +326,20 @@ footer {
   <section>
     <h2>Was die Auswertung zeigt</h2>
     <ul class="limits">
-      <li><b>Kaufpreise je Stadtteil</b>, absteigend sortiert, mit Suche und
-        Favoriten zum Anheften</li>
-      <li><b>Verlauf</b> über alle Jahrgänge, mit der Preisspanne je Stadtteil</li>
+      <li><b>Kaufpreise je Gebiet</b>, absteigend sortiert, mit Suche und
+        Favoriten zum Anheften — in jeder Stadt. Jede Stadt merkt sich ihre
+        eigenen Favoriten</li>
+      <li><b>Verlauf</b> über alle Jahrgänge, mit der Preisspanne je Gebiet und
+        der Veränderung in Prozent — für Hamburg und Frankfurt</li>
       <li><b>Baujahr und Lagequalität</b> als Farbmatrix, neun Baujahresklassen
         mal fünf Lagen</li>
       <li><b>Bestand gegen Neubau</b> über die normierte Standardwohnung</li>
       <li><b>Preisindizes</b> für Eigentumswohnungen und Mehrfamilienhäuser,
         2015 bis 2025</li>
       <li><b>Kauffälle je Stadtteil</b> — die Stichprobe hinter jedem Mittelwert</li>
-      <li><b>Stadt-Umschalter</b> oben: Hamburg, Wiesbaden und Kiel. Wiesbaden
-        zusätzlich getrennt nach Neubau, Umwandlung und Weiterverkauf</li>
+      <li><b>Stadt-Umschalter</b> oben: Hamburg, Wiesbaden, Kiel und Frankfurt.
+        Wiesbaden zusätzlich getrennt nach Neubau, Umwandlung und Weiterverkauf,
+        Frankfurt nach Bestand, Neubau und Altbau</li>
       <li><b>Zahlen Dritter</b> ganz unten, abgesetzt: derzeit Colliers für
         Hamburg, Frankfurt, Kiel und Wiesbaden</li>
     </ul>
@@ -379,12 +385,17 @@ footer {
       <li><b>Wiesbadens Bezirkswerte sind gerechnet</b>, nicht abgelesen: nach
         Kauffällen gewichtet aus den Zellen des Berichts. Der Bericht selbst
         gewichtet nach Fläche und nennt deshalb leicht andere Gesamtwerte.</li>
-      <li><b>Frankfurt fehlt</b> — aus zwei Gründen. Die Stadt sperrt
-        automatisierte Downloads, und es gibt keinen Leser für den Frankfurter
-        Bericht: Sein Aufbau ist ein anderer als der Hamburger. Ein von Hand
-        geladenes PDF genügt deshalb nicht. Was es für Frankfurt gibt, sind die
-        Colliers-Zahlen weiter unten — andere Objektart, nicht mit den amtlichen
-        Kaufpreisen vergleichbar.</li>
+      <li><b>Frankfurt erscheint nur, wenn die Berichte abgelegt sind.</b> Die
+        Stadt sperrt automatisierte Downloads, deshalb lädt das Werkzeug dort
+        nichts. Es liest, was unter
+        <code>~/.cache/immobilienmarktberichte/</code> als
+        <code>FFM&lt;Jahr&gt;.pdf</code> liegt. Die Berichte sind <b>nicht</b>
+        Teil des Plugins — ohne sie fehlt der Frankfurt-Reiter, alles andere
+        funktioniert normal.</li>
+      <li><b>Frankfurt gliedert nach Grundbuchbezirken</b>, nicht nach
+        Stadtteilen. 15 Gruppen, die Ortsteilnamen stehen in Klammern —
+        „Nordend, Ostend“ ist ein Gebiet, nicht zwei. Diese Werte sind aus den
+        Baujahrszellen nach Kauffällen gewichtet gerechnet, nicht abgelesen.</li>
       <li><b>Hamburg 2025 stammt aus einer Texterkennung.</b> Der Bericht 2026
         setzt seine Tabellen als Grafik. Das Werkzeug liest sie mit zwei
         unabhängigen Erkennungsmodellen und übernimmt nur, worin beide

@@ -9,7 +9,12 @@ Wertet die Immobilienmarktberichte der Gutachterausschüsse aus und erzeugt eine
 eigenständige HTML-Seite mit Kaufpreisen je Stadtteil, Verlaufsansicht,
 Lagematrix und dem Vergleich Bestand gegen Neubau.
 
-Abgedeckt sind **Hamburg, Wiesbaden und Kiel**; in der Seite schaltet man oben
+In jeder Stadt lassen sich Gebiete suchen und als Favorit anheften; die
+Favoriten liegen je Stadt getrennt. Wo mehrere Jahrgänge vorliegen — Hamburg
+und Frankfurt — gibt es zusätzlich einen Reiter „Verlauf“ mit der Preisspanne
+je Gebiet und der Veränderung in Prozent.
+
+Abgedeckt sind **Hamburg, Wiesbaden, Kiel und Frankfurt am Main**; in der Seite schaltet man oben
 zwischen den Städten um. Die Berichte sind strukturell verschieden, jede Stadt
 hat deshalb einen eigenen Tabellenleser.
 
@@ -53,6 +58,7 @@ Wähle die Parameter nach dem, was gefragt wurde:
 | Zeitraum | `--years 2023-2025` |
 | Berichte neu laden statt Zwischenspeicher | `--refresh` |
 | nur bestimmte Städte | `--cities wiesbaden` oder `--cities keine` |
+| Frankfurt allein | `--cities frankfurt` |
 | andere Leitquelle | `--source <name>` |
 | eigene Quellendatei | `--daten <pfad>` |
 
@@ -107,11 +113,17 @@ Kurzfassung:
 - **Wiesbadens Bezirkswerte sind gerechnet**, nicht abgelesen: gewichtet nach
   Kauffällen aus den Zellen. Der Bericht gewichtet nach Fläche und nennt deshalb
   leicht andere Gesamtwerte. Sage das, wenn jemand Wiesbadener Zahlen zitiert.
-- **Frankfurt fehlt.** Zwei Gründe, nicht einer: Die Stadt sperrt automatisierte
-  Downloads mit einer Cloudflare-Prüfung, und es gibt keinen Frankfurter
-  Tabellenleser. Ein von Hand geladenes PDF genügt deshalb **nicht** — `--pdf`
-  nutzt die Tabellendefinitionen der gewählten Quelle, und die einzige Quelle
-  ist Hamburg. Nenne `--pdf` hier nicht als Ausweg.
+- **Frankfurt braucht von Hand abgelegte Berichte.** Die Stadt sperrt
+  automatisierte Downloads mit einer Cloudflare-Prüfung; das Werkzeug versucht
+  deshalb gar keinen Abruf. Es liest, was als `FFM<Jahr>.pdf` im
+  Zwischenspeicher liegt (`~/.cache/immobilienmarktberichte/`). Fehlt dort
+  alles, wird Frankfurt übersprungen — sage dann, dass der Bericht von der
+  Seite des Frankfurter Gutachterausschusses geladen und dort abgelegt werden
+  muss. `--pdf` ist dafür **nicht** der Weg: das gilt nur für die Leitquelle.
+- **Frankfurt gliedert nach Grundbuchbezirken**, nicht nach Stadtteilen — 15
+  Gruppen, deren Ortsteilnamen in Klammern stehen. Die Gebietswerte sind aus
+  den Baujahrszellen nach Kauffällen **gerechnet**, nicht abgelesen. Sage das
+  dazu, wenn jemand Frankfurter Zahlen zitiert.
 - **Städte nicht unbesehen vergleichen.** Die Gutachterausschüsse grenzen
   unterschiedlich ab (Stadtteil gegen Stadtbezirk, andere Segmente).
 

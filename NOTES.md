@@ -30,6 +30,7 @@ plugins/marktdaten-wohnen/       das Plugin, einzige Kopie aller Skripte
 | Hamburg | 104 Stadtteile | 2025 | **Texterkennung** |
 | Wiesbaden | 26 Stadtbezirke | 2025 | Text, drei Segmente |
 | Kiel | 26 Stadtteile | 2025 | Text, nur Weiterverkauf |
+| Frankfurt | 15 Grundbuchbezirke | 2021–2025 | Text, von Hand abgelegte PDFs |
 
 Hamburg gesamt: 6.164 → 6.473 → 5.706 → 5.696 → 5.808 €/m².
 
@@ -131,6 +132,30 @@ Hochzählen in plugin.json**.
 automatische Aktualisierung standardmäßig *aus*; das war der Grund, warum nie
 etwas von allein ankam.
 
+**Zusatzstädte können jetzt mehrere Jahrgänge führen.** `CityDataset` hat eine
+Liste von `CityYear`; `segments` und `data_year` zeigen weiter auf das neueste
+Jahr, damit einjährige Städte unverändert funktionieren. Wiesbaden und Kiel
+bekommen keine Jahres-Reiter — ein einzelner Reiter wäre eine Schaltfläche ohne
+Wahl.
+
+**Verlauf und Favoriten in allen Städten.** Die Zusatzstädte hatten weder das
+eine noch das andere — die Leitstadt-Ansicht und `renderCity` waren getrennt
+gewachsen. Beides ist jetzt portiert: ein Reiter „Verlauf“ neben den Jahren
+(nur wo es mehrere gibt), Sterne in jeder Zeile, Suchfeld und
+Nur-Favoriten-Schalter.
+
+**Favoriten liegen je Stadt getrennt** unter `imb-favoriten-<stadt>`. Eppendorf
+und Westend gehören nicht in dieselbe Liste. Der Schlüssel folgt der aktiven
+Stadt; beim Umschalten wird die Liste der neuen Stadt geladen. Zu beachten:
+`loadFavs()` läuft schon während der Erzeugung von `state`, deshalb muss
+`favKey()` ein noch leeres `state` aushalten.
+
+**Gemeinsame Skala auch bei den Zusatzstädten.** Der längste Balken bemisst sich
+über alle Jahrgänge des gewählten Segments, nicht über das gezeigte Jahr.
+Dieselbe Entscheidung wie bei Hamburg, aus demselben Grund: sonst sieht jedes
+Jahr gleich aus. Sichtbar wird das am Westend, das von 10.116 auf 8.166 €/m²
+fällt — der Balken schrumpft von 81 % auf 65 % der Breite.
+
 **Repository öffentlich.** Löst Zugriffs- und Aktualisierungsfragen. Inhaltlich
 unkritisch, solange dort nur öffentliche Quellenangaben stehen.
 
@@ -175,19 +200,31 @@ Kauffälle-Seite rund fünf kleine Zahlen; Summe 5.479 statt ausgewiesener 5.543
 Die Preise sind davon nicht betroffen. Für 2025 fehlen deshalb die Fallzahlen je
 Stadtteil — im Tooltip bleibt das Feld leer.
 
-**Frankfurt fehlt — und `--pdf` ist entgegen früherer Notiz kein Ausweg.**
-Zwei Hürden, nicht eine:
+**Frankfurt ist drin.** Die lange offene Frage ist beantwortet: der Bericht
+führt Gebietstabellen, in Abschnitt 3.7.3 „Mittlere Preise für
+Eigentumswohnungen nach Grundbuchbezirken“. Damit war der Rest Handwerk.
 
-1. Cloudflare-Prüfung beim Download. Bot-Schutz wird nicht umgangen.
-2. Es gibt keinen Frankfurter Tabellenleser. `--pdf` nutzt immer die
-   Tabellendefinitionen der gewählten Quelle, und `SOURCES` enthält allein
-   Hamburg — ein Frankfurter Bericht bricht dort mit „Tabelle nicht gefunden“ ab.
+Aufbau: 15 Gruppen von Grundbuchbezirken, je Gruppe **zwei** Jahrgänge, je
+Jahrgang sechs Baujahrsklassen mit Anzahl und Preis. Vier Berichte (2023–2026)
+ergeben deshalb die Reihe 2021–2025 — dieselbe Spanne wie Hamburg, mit
+Jahres-Reitern wie dort. Bei Überschneidung gewinnt der neuere Bericht: er
+enthält die nachträglich korrigierten Zahlen.
 
-Ein von Hand geladenes PDF genügt also nicht; nötig wäre zusätzlich ein eigener
-Leser nach dem Muster von Wiesbaden und Kiel. Die frühere Notiz behauptete das
-Gegenteil und stand so auch im Skill — beides ist korrigiert. Weiterhin
-ungeprüft ist, ob der Frankfurter Bericht überhaupt Stadtteiltabellen führt;
-diese Frage gehört vor jede Parserarbeit, nicht danach.
+Drei Entscheidungen dazu:
+
+- **Kein Download-Versuch.** Cloudflare sperrt, Bot-Schutz wird nicht umgangen.
+  Der Leser liest ausschließlich, was als `FFM<Jahr>.pdf` im Zwischenspeicher
+  liegt. Fehlt alles, wird Frankfurt übersprungen — kein Fehler, nur ein Reiter
+  weniger. Auf einem frisch eingerichteten Rechner ist das der Normalfall.
+- **Die Berichte liegen nicht im Repository.** Es sind rund 11 MB fremdes
+  Material; verteilt wird der Leser, nicht die Quelle.
+- **Gebietswerte werden gerechnet**, nach Kauffällen gewichtet über die
+  Baujahrszellen — der Bericht weist je Gebiet keinen Gesamtwert aus. Dieselbe
+  Entscheidung wie bei Wiesbaden, aus demselben Grund.
+
+Gegenprobe: Westend 2025 ergibt 677.740 / 83 = 8.166 €/m². Der Bericht nennt im
+Fließtext Bornheim als teuersten Neubau mit „rund 9.600 €/m²“ — der Leser
+liefert dort 9.630 €/m².
 
 **Automatische Aktualisierung kommt nicht an — Befund vom 25.08.2026.** Nicht
 mehr „unbewiesen“, sondern nachweislich hängend. Auf diesem Rechner:
@@ -210,6 +247,10 @@ etwas mit dem Marktplatz-Eintrag nicht.
 **Wiesbaden und Kiel haben nur einen Jahrgang.** Die Verlaufsansicht ist dort
 entsprechend dünn. Ältere Ausgaben liegen bei Wiesbaden unter derselben Adresse
 (2025 abrufbar), bei Kiel auf der Übersichtsseite bis 2020.
+
+**Drei fast gleiche Blöcke in `collect_cities`.** Mit Frankfurt sind es jetzt
+drei; eine Registry (Schlüssel → Abrufer/Auswerter) wäre überfällig. Bewusst
+nicht mitgemacht, um die Änderung klein zu halten.
 
 **Colliers-Kaufpreisfaktoren ungenutzt.** Stehen je Stadt und Lagequalität auf
 denselben Seiten wie die übernommenen Preise. Gleiche Struktur, andere Einheit —

@@ -155,19 +155,41 @@ Gutachterausschuss ausgewiesen.
 
 Geprüft: null Abweichungen gegen den Rohtext der Stadtteiltabelle.
 
-## Frankfurt
+## Frankfurt am Main
 
-**Nicht eingebunden**, aus zwei voneinander unabhängigen Gründen:
+Eingebunden, aber als einzige Stadt **ohne automatischen Abruf**. Die Stadt
+schützt ihre Downloads mit einer JavaScript-Prüfung von Cloudflare; Bot-Schutz
+wird nicht umgangen. Das Werkzeug versucht deshalb gar keinen Abruf, sondern
+liest, was von Hand als `FFM<Jahr>.pdf` im Zwischenspeicher liegt:
 
-1. Der Download ist durch eine JavaScript-Prüfung von Cloudflare geschützt.
-   Bot-Schutz wird nicht umgangen.
-2. Es gibt keinen Frankfurter Tabellenleser. `--pdf` nutzt immer die
-   Tabellendefinitionen der gewählten Quelle, und die einzige Quelle ist
-   Hamburg; ein Frankfurter Bericht bricht dort mit „Tabelle nicht gefunden" ab.
+```
+~/.cache/immobilienmarktberichte/FFM2026.pdf
+```
 
-Ein von Hand geladenes PDF genügt also **nicht**. Nötig wäre zusätzlich ein
-eigener Leser nach dem Muster von Wiesbaden und Kiel. Verweise nicht auf
-`--pdf` als Ausweg — er führt in eine Sackgasse.
+Liegt dort nichts, wird Frankfurt stillschweigend übersprungen — die übrigen
+Städte sind davon nicht betroffen. Das ist der Normalfall auf einem frisch
+eingerichteten Rechner: **die Berichte werden nicht mitgeliefert.**
+
+Quelle ist Abschnitt 3.7.3 „Mittlere Preise für Eigentumswohnungen nach
+Grundbuchbezirken". Besonderheiten, die in jede Antwort gehören:
+
+- **Grundbuchbezirke statt Stadtteile.** 15 Gruppen, jede fasst mehrere
+  Bezirke zusammen; die Ortsteilnamen stehen in Klammern dahinter. „Nordend,
+  Ostend" ist ein Gebiet, nicht zwei.
+- **Die Gebietswerte sind gerechnet, nicht abgelesen.** Der Bericht führt je
+  Gebiet sechs Baujahrsklassen mit Anzahl und Preis; daraus wird nach
+  Kauffällen gewichtet. Einen ausgewiesenen Gesamtwert je Gebiet gibt es nicht.
+- **Drei Segmente:** Bestand (alle Klassen außer Neubau), Neubau, und Altbau
+  (Baujahr bis 1918). Neubau hat nur in 7 der 15 Gebiete Werte.
+- **Zwei Jahrgänge je Bericht.** Vier Berichte (2023–2026) ergeben die Reihe
+  2021–2025, umschaltbar über Jahres-Reiter wie bei Hamburg. Überschneiden sich
+  zwei Berichte in einem Jahr, gilt der neuere — er enthält die nachträglich
+  korrigierten Zahlen.
+- **Die Balkenskala gilt über alle Jahrgänge**, nicht je Jahr. Ein kürzerer
+  Balken bedeutet also wirklich einen niedrigeren Preis, nicht bloß eine andere
+  Skalierung.
+- Der Bericht mahnt selbst zur Vorsicht bei kleinen Fallzahlen — einzelne
+  Gebiete stützen sich auf unter zehn Verkäufe.
 
 ## Städte vergleichen
 

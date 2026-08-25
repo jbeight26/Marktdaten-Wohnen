@@ -1441,6 +1441,11 @@ pre { background:var(--plane); border:1px solid var(--hairline); border-radius:8
 .broker-row { display:flex; flex-wrap:wrap; align-items:baseline; gap:10px;
               padding:9px 0; border-bottom:1px solid var(--hairline); }
 .broker-row:last-child { border-bottom:none; }
+.city-series { display:flex; flex-wrap:wrap; gap:14px; align-items:baseline; }
+.city-series b { font-variant-numeric:tabular-nums; font-weight:600; color:var(--ink); }
+.city-series .jahr { color:var(--muted); font-size:11.5px; }
+.city-series .ist b { color:var(--accent, var(--ink)); }
+.city-series .ist .jahr { color:var(--ink-2); }
 .broker-group { margin:0 0 4px; }
 .broker-group:last-child { margin-bottom:0; }
 .broker-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px;
@@ -1479,7 +1484,13 @@ APP_JS = r"""
     return Object.keys(y.areas).some(function (n) { return y.areas[n].p != null; });
   });
   var LAST = YEARS[YEARS.length - 1];
-  var FAV_KEY = 'imb-favoriten-' + DATA.sourceKey;
+  // Favoriten je Stadt getrennt: Eppendorf und Westend gehoeren nicht in
+  // dieselbe Liste. Der Schluessel folgt deshalb der aktiven Stadt.
+  // `state` ist beim ersten Aufruf noch nicht belegt -- loadFavs() laeuft
+  // waehrend seiner Erzeugung. Deshalb die Absicherung.
+  function favKey() {
+    return 'imb-favoriten-' + ((state && state.stadt) || DATA.sourceKey);
+  }
 
   // Eine Skala über alle Jahrgänge je Objektart. Würde jedes Jahr neu skaliert,
   // sähen die Balken in jedem Jahr gleich lang aus und die Entwicklung verschwände.
@@ -1492,6 +1503,9 @@ APP_JS = r"""
   var state = {
     stadt: DATA.sourceKey,    // Schlüssel der aktiven Stadt
     segment2: null,           // gewähltes Segment der Zusatzstädte
+    jahr2: null,              // Preisjahr der Zusatzstädte, oder 'span'
+    query2: '',               // Suchfeld der Zusatzstädte
+    favOnly2: false,          // Favoritenfilter der Zusatzstädte
     objekt: 'etw',            // 'etw' | 'mfh'
     segment: 'bestand',       // 'bestand' | 'neubau'
     view: 'year',
@@ -1530,10 +1544,10 @@ APP_JS = r"""
   }
 
   function loadFavs() {
-    try { return JSON.parse(localStorage.getItem(FAV_KEY)) || []; } catch (e) { return []; }
+    try { return JSON.parse(localStorage.getItem(favKey())) || []; } catch (e) { return []; }
   }
   function saveFavs() {
-    try { localStorage.setItem(FAV_KEY, JSON.stringify(Array.from(state.favs))); } catch (e) {}
+    try { localStorage.setItem(favKey(), JSON.stringify(Array.from(state.favs))); } catch (e) {}
   }
   function fmt(n) { return n == null ? '—' : n.toLocaleString('de-DE'); }
   function yearOf(dy) {
@@ -2088,48 +2102,128 @@ APP_JS = r"""
     }
     h1.textContent = 'Eigentumswohnungen in ' + c.city;
     sub.textContent = 'Mittlere Kaufpreise je m² Wohnfläche nach ' + c.areaLabel
-      + ', ' + c.dataYear;
+      + ', ' + (state.jahr2 != null && c.years && c.years.length > 1
+                ? state.jahr2 : c.dataYear);
     cav.textContent = 'Quelle: ' + c.publisher + '. Grundlage sind beurkundete '
       + 'Kaufverträge. Die Berichte der Städte grenzen unterschiedlich ab — '
       + 'Werte zwischen Städten nur mit Vorsicht vergleichen.';
 
-    if (!state.segment2 || !c.segments.some(function (s) { return s.key === state.segment2; })) {
+    // Jahrgang bestimmen. Staedte mit nur einem Jahr behalten keine Reiter --
+    // ein einzelner Reiter waere eine Schaltflaeche ohne Wahl.
+    var jahre = c.years && c.years.length > 1 ? c.years : null;
+    var istVerlauf = !!jahre && state.jahr2 === 'span';
+    var jahrgang = null;
+    if (jahre) {
+      if (state.jahr2 == null || (!istVerlauf
+          && !jahre.some(function (y) { return y.dataYear === state.jahr2; }))) {
+        state.jahr2 = jahre[jahre.length - 1].dataYear;
+      }
+      // Im Verlauf liefert der jüngste Jahrgang die Segmentliste.
+      jahrgang = istVerlauf ? jahre[jahre.length - 1]
+        : jahre.filter(function (y) { return y.dataYear === state.jahr2; })[0];
+    }
+    var segmente = jahrgang ? jahrgang.segments : c.segments;
+
+    var jahrHost = document.getElementById('city-years');
+    jahrHost.hidden = !jahre;
+    jahrHost.innerHTML = jahre ? jahre.map(function (y) {
+      return '<button class="tab" role="tab" data-cityyear="' + y.dataYear
+        + '" aria-selected="' + (y.dataYear === state.jahr2) + '">'
+        + y.dataYear + '</button>';
+    }).join('') + '<button class="tab" role="tab" data-cityyear="span"'
+      + ' aria-selected="' + istVerlauf + '">Verlauf</button>' : '';
+    document.getElementById('city-hint').textContent =
+      'Absteigend sortiert. Favoriten stehen oben.'
+      + (jahre ? ' „Verlauf“ zeigt die Spanne zwischen niedrigstem und höchstem '
+                 + 'Jahreswert.' : '');
+    document.getElementById('city-span-keys').hidden = !istVerlauf;
+    document.getElementById('city-legend-ref').hidden = istVerlauf;
+
+    if (!state.segment2 || !segmente.some(function (s) { return s.key === state.segment2; })) {
       // Auf dem tragfähigsten Segment starten, nicht auf dem erstgenannten:
       // Neubau umfasst oft nur eine Handvoll Bezirke.
-      var beste = c.segments.slice().sort(function (a, b) {
+      var beste = segmente.slice().sort(function (a, b) {
         var za = Object.keys(a.areas).filter(function (k) { return a.areas[k].p != null; }).length;
         var zb = Object.keys(b.areas).filter(function (k) { return b.areas[k].p != null; }).length;
         return zb - za;
       })[0];
       state.segment2 = beste.key;
     }
-    var seg = c.segments.filter(function (s) { return s.key === state.segment2; })[0];
+    var seg = segmente.filter(function (s) { return s.key === state.segment2; })[0];
 
     document.getElementById('city-title').textContent =
       'Kaufpreise nach ' + c.areaLabel + ' — ' + c.city;
     document.getElementById('city-sub').textContent =
-      c.publisher + ', Bericht ' + c.reportYear + ', Preisjahr ' + c.dataYear + '.';
+      c.publisher + ', Bericht ' + (jahrgang ? jahrgang.reportYear : c.reportYear)
+      + ', Preisjahr ' + (jahrgang ? jahrgang.dataYear : c.dataYear) + '.';
 
-    document.getElementById('city-segments').innerHTML = c.segments.map(function (s) {
+    document.getElementById('city-segments').innerHTML = segmente.map(function (s) {
       return '<button class="tab" role="tab" data-seg="' + esc(s.key) + '" aria-selected="'
         + (s.key === state.segment2) + '">' + esc(s.label) + '</button>';
     }).join('');
 
-    var rows = Object.keys(seg.areas).map(function (n) {
-      var a = seg.areas[n];
-      return { name: n, value: a.p, count: a.c, marker: a.m,
-               baujahr: a.baujahr, wohnflaeche: a.wohnflaeche };
-    });
+    function segIn(y) {
+      return y.segments.filter(function (g) { return g.key === seg.key; })[0];
+    }
+
+    var rows;
+    if (istVerlauf) {
+      // Spanne zwischen niedrigstem und höchstem Jahreswert, plus die
+      // Veränderung vom ersten zum letzten belegten Jahr.
+      var namen = {};
+      jahre.forEach(function (y) {
+        var g = segIn(y);
+        if (g) Object.keys(g.areas).forEach(function (n) { namen[n] = 1; });
+      });
+      rows = Object.keys(namen).map(function (n) {
+        var min = null, max = null, erst = null, letzt = null, belegt = 0;
+        jahre.forEach(function (y) {
+          var g = segIn(y), a = g ? g.areas[n] : null, v = a ? a.p : null;
+          if (v == null) return;
+          belegt++;
+          if (min == null || v < min) min = v;
+          if (max == null || v > max) max = v;
+          if (erst == null) erst = v;
+          letzt = v;
+        });
+        return {
+          name: n, value: letzt, min: min, max: max, jahre: belegt,
+          trend: (erst != null && letzt != null && erst !== letzt)
+            ? (letzt / erst - 1) * 100 : null,
+          count: null, marker: letzt == null ? '*' : null
+        };
+      });
+    } else {
+      rows = Object.keys(seg.areas).map(function (n) {
+        var a = seg.areas[n];
+        return { name: n, value: a.p, count: a.c, marker: a.m,
+                 baujahr: a.baujahr, wohnflaeche: a.wohnflaeche };
+      });
+    }
+
     var withValue = rows.filter(function (r) { return r.value != null; })
                         .sort(function (a, b) { return b.value - a.value; });
     var without = rows.filter(function (r) { return r.value == null; });
 
-    var peak = withValue.length ? withValue[0].value : 1;
+    // Eine Skala ueber alle Jahrgaenge, wie bei Hamburg. Wuerde je Jahr neu
+    // skaliert, waere der laengste Balken immer gleich lang und die
+    // Preisentwicklung beim Umschalten unsichtbar.
+    var peak = 0;
+    (jahre || [{ segments: segmente }]).forEach(function (y) {
+      y.segments.forEach(function (g) {
+        if (g.key !== seg.key) return;
+        Object.keys(g.areas).forEach(function (n) {
+          var v = g.areas[n].p;
+          if (v != null && v > peak) peak = v;
+        });
+      });
+    });
+    if (!peak) peak = withValue.length ? withValue[0].value : 1;
     var nice = [500, 1000, 2000, 2500, 5000], step = 5000, max = peak;
     for (var i = 0; i < nice.length; i++) {
       if (Math.ceil(peak / nice[i]) <= 5) { step = nice[i]; max = Math.ceil(peak / nice[i]) * nice[i]; break; }
     }
-    var ref = seg.total ? (seg.total / max * 100) : -10;
+    var ref = (!istVerlauf && seg.total) ? (seg.total / max * 100) : -10;
 
     var kpis = [
       kpi(c.city + ' gesamt', seg.total ? fmt(seg.total) : '—', seg.unit,
@@ -2155,23 +2249,92 @@ APP_JS = r"""
     var html = '<div class="axis" aria-hidden="true"><div></div><div></div>'
       + '<div class="ticks">' + ticks.join('') + '</div><div></div></div>';
 
-    withValue.forEach(function (r, i) {
+    // Suche und Favoritenfilter, danach Favoriten nach oben -- wie bei der
+    // Leitstadt, damit die Bedienung in jeder Stadt dieselbe ist.
+    var suche = state.query2.trim().toLowerCase();
+    var sichtbar = withValue.filter(function (r) {
+      if (state.favOnly2 && !state.favs.has(r.name)) return false;
+      return !suche || r.name.toLowerCase().indexOf(suche) >= 0;
+    });
+    sichtbar.sort(function (a, b) {
+      var fa = state.favs.has(a.name), fb = state.favs.has(b.name);
+      if (fa !== fb) return fa ? -1 : 1;
+      return b.value - a.value;
+    });
+
+    document.getElementById('city-count').textContent =
+      sichtbar.length === withValue.length
+        ? withValue.length + ' ' + c.areaLabel + 'e'
+        : sichtbar.length + ' von ' + withValue.length;
+
+    sichtbar.forEach(function (r) {
+      var fav = state.favs.has(r.name);
       var detail = [fmt(r.value) + ' ' + seg.unit];
-      if (r.count != null) detail.push(r.count + ' Kauffälle');
-      if (r.baujahr) detail.push('Ø Baujahr ' + r.baujahr);
-      if (r.wohnflaeche) detail.push('Ø ' + r.wohnflaeche + ' m²');
-      html += '<div class="row" title="' + esc(detail.join(' · ')) + '">'
-        + '<div></div>'
-        + '<div class="row-name">' + esc(r.name) + '</div>'
-        + '<div class="row-track"><div class="row-bar" style="width:'
-        + (r.value / max * 100).toFixed(2) + '%"></div></div>'
-        + '<div class="row-value">' + fmt(r.value) + '</div></div>';
+      var body, wertText;
+
+      if (istVerlauf) {
+        var lo = r.min / max * 100, hi = r.max / max * 100;
+        body = '<div class="span-track">'
+          + '<div class="span-bar" style="left:' + lo.toFixed(3) + '%;width:'
+          + Math.max(hi - lo, 0.2).toFixed(3) + '%"></div>'
+          + '<div class="span-dot" style="left:' + (r.value / max * 100).toFixed(3)
+          + '%"></div></div>';
+        var trendText = '';
+        if (r.trend != null) {
+          var gerundet = Math.round(r.trend);
+          // Eine gerundete Null bekommt keinen Pfeil -- sonst behauptet die
+          // Anzeige eine Bewegung und beziffert sie im selben Atemzug mit 0 %.
+          trendText = '<span class="trend">'
+            + (gerundet === 0 ? '±0' : (gerundet > 0 ? '▲' : '▼') + Math.abs(gerundet))
+            + '%</span>';
+        }
+        wertText = fmt(r.value) + trendText;
+        detail = ['Spanne ' + fmt(r.min) + '–' + fmt(r.max) + ' ' + seg.unit,
+                  r.jahre + ' von ' + jahre.length + ' Jahren mit Wert'];
+      } else {
+        body = '<div class="row-bar" style="width:'
+          + (r.value / max * 100).toFixed(2) + '%"></div>';
+        wertText = fmt(r.value);
+        if (r.count != null) detail.push(r.count + ' Kauffälle');
+        if (r.baujahr) detail.push('Ø Baujahr ' + r.baujahr);
+        if (r.wohnflaeche) detail.push('Ø ' + r.wohnflaeche + ' m²');
+      }
+
+      html += '<div class="row' + (fav ? ' pinned' : '') + '" title="'
+        + esc(detail.join(' · ')) + '">'
+        + '<button class="star' + (fav ? ' on' : '') + '" data-cityfav="' + esc(r.name) + '"'
+        + ' title="' + (fav ? 'Favorit entfernen' : 'Als Favorit merken') + '"'
+        + ' aria-pressed="' + fav + '">' + (fav ? '★' : '☆') + '</button>'
+        + '<div class="row-name" title="' + esc(r.name) + '">' + esc(r.name) + '</div>'
+        + '<div class="row-track">' + body + '</div>'
+        + '<div class="row-value">' + wertText + '</div></div>';
     });
 
     var chart = document.getElementById('city-chart');
     chart.style.setProperty('--tick-step', (100 / n).toFixed(3) + '%');
     chart.style.setProperty('--ref', ref.toFixed(3) + '%');
     chart.innerHTML = html;
+
+    // Der Gesamtverlauf des gewaehlten Segments auf einen Blick -- damit man
+    // die Richtung sieht, ohne jeden Jahrgang einzeln anzuklicken.
+    var reihe = document.getElementById('city-series');
+    var punkte = (jahre || []).map(function (y) {
+      var g = y.segments.filter(function (x) { return x.key === seg.key; })[0];
+      return g && g.total != null ? { year: y.dataYear, value: g.total } : null;
+    }).filter(Boolean);
+    if (punkte.length > 1) {
+      reihe.className = 'matrix-note city-series';
+      reihe.innerHTML = '<span>' + esc(seg.label) + ' im Verlauf:</span>'
+        + punkte.map(function (p) {
+            return '<span class="' + (p.year === state.jahr2 ? 'ist' : '') + '">'
+              + '<span class="jahr">' + p.year + '</span> <b>'
+              + fmt(p.value) + '</b></span>';
+          }).join('')
+        + '<span class="jahr">' + esc(seg.unit) + '</span>';
+    } else {
+      reihe.className = 'matrix-note';
+      reihe.innerHTML = '';
+    }
 
     document.getElementById('city-note').textContent = seg.note || '';
     document.getElementById('city-missing').innerHTML = without.length
@@ -2186,6 +2349,33 @@ APP_JS = r"""
       + c.reportYear + '</a>'
       + (c.sourcePage ? ' · <a href="' + esc(c.sourcePage) + '">Übersicht</a>' : '') + '</p>';
   }
+
+  document.getElementById('city-years').addEventListener('click', function (ev) {
+    var tab = ev.target.closest('[data-cityyear]');
+    if (!tab) return;
+    state.jahr2 = tab.dataset.cityyear === 'span'
+      ? 'span' : parseInt(tab.dataset.cityyear, 10);
+    renderCity();
+  });
+
+  document.getElementById('city-chart').addEventListener('click', function (ev) {
+    var stern = ev.target.closest('[data-cityfav]');
+    if (!stern) return;
+    var name = stern.dataset.cityfav;
+    if (state.favs.has(name)) state.favs.delete(name); else state.favs.add(name);
+    saveFavs();
+    renderCity();
+  });
+
+  document.getElementById('city-search').addEventListener('input', function () {
+    state.query2 = this.value;
+    renderCity();
+  });
+
+  document.getElementById('city-fav-only').addEventListener('change', function () {
+    state.favOnly2 = this.checked;
+    renderCity();
+  });
 
   document.getElementById('city-segments').addEventListener('click', function (ev) {
     var tab = ev.target.closest('.tab');
@@ -2202,6 +2392,13 @@ APP_JS = r"""
     });
     state.stadt = tab.dataset.stadt;
     state.segment2 = null;
+    state.jahr2 = null;
+    state.query2 = '';
+    state.favOnly2 = false;
+    document.getElementById('city-search').value = '';
+    document.getElementById('city-fav-only').checked = false;
+    // Jede Stadt fuehrt ihre eigene Favoritenliste.
+    state.favs = new Set(loadFavs());
     renderCity();
     if (state.stadt === DATA.sourceKey) {
       render(); renderIndex(); renderStandard(); renderBroker();
@@ -2510,6 +2707,19 @@ def cities_payload(cities: list | None) -> list[dict]:
             "publisher": c.publisher, "reportYear": c.report_year,
             "dataYear": c.data_year, "pdfUrl": c.pdf_url,
             "sourcePage": c.source_page, "notes": c.notes,
+            "years": [
+                {
+                    "dataYear": y.data_year, "reportYear": y.report_year,
+                    "sourcePage": y.source_page,
+                    "segments": [
+                        {"key": g.key, "label": g.label, "unit": g.unit,
+                         "areas": g.areas, "total": g.total,
+                         "totalCount": g.total_count, "note": g.note}
+                        for g in y.segments
+                    ],
+                }
+                for y in (c.years or [])
+            ],
             "segments": [
                 {"key": g.key, "label": g.label, "unit": g.unit, "areas": g.areas,
                  "total": g.total, "totalCount": g.total_count, "note": g.note}
@@ -2689,10 +2899,27 @@ def render_html(report: Report, live: bool = False, command: str = "python imb.p
 <section class="card" id="city-card" hidden>
   <h2 id="city-title"></h2>
   <p class="section-note" id="city-sub"></p>
+  <p class="section-note" id="city-hint"></p>
   <div class="kpis" id="city-kpis"></div>
+  <div class="tabs" id="city-years" role="tablist" hidden></div>
   <div class="tabs" id="city-segments" role="tablist"></div>
+
+  <div class="toolbar">
+    <input id="city-search" type="search" placeholder="Gebiet suchen …"
+           aria-label="Gebiet suchen" autocomplete="off">
+    <label class="check"><input type="checkbox" id="city-fav-only"> nur Favoriten</label>
+    <span class="count" id="city-count"></span>
+  </div>
+
   <div class="chart" id="city-chart"></div>
-  <p class="legend-note"><span><span class="key-line"></span>Senkrechte Linie: Gesamtwert</span></p>
+  <p class="legend-note">
+    <span id="city-legend-ref"><span class="key-line"></span>Senkrechte Linie: Gesamtwert</span>
+    <span id="city-span-keys" hidden>
+      <span class="key-span"></span>Spanne über alle Jahre
+      &nbsp;<span class="key-dot"></span>jüngster Wert
+    </span>
+  </p>
+  <p class="matrix-note" id="city-series"></p>
   <p class="matrix-note" id="city-note"></p>
   <div class="missing-group" id="city-missing"></div>
   <div id="city-extra"></div>
@@ -2906,7 +3133,7 @@ def collect_cities(spec: str, cache_dir: Path, refresh: bool = False) -> list:
         print("  Hinweis: staedte.py nicht gefunden, weitere Städte übersprungen")
         return []
 
-    gewuenscht = ({"wiesbaden", "kiel"} if spec.lower() in {"alle", "all"}
+    gewuenscht = ({"wiesbaden", "kiel", "frankfurt"} if spec.lower() in {"alle", "all"}
                   else {t.strip().lower() for t in spec.split(",") if t.strip()})
     out = []
 
@@ -2947,6 +3174,20 @@ def collect_cities(spec: str, cache_dir: Path, refresh: bool = False) -> list:
             print(f"Preisjahr {data.data_year}: {mit} von {len(seg.areas)} "
                   f"{data.area_label}en mit Preis")
         except (DownloadError, ExtractionError, requests.RequestException) as exc:
+            print(f"übersprungen ({exc})")
+
+    if "frankfurt" in gewuenscht:
+        print("→ Frankfurt …", end=" ", flush=True)
+        try:
+            data = staedte.extract_frankfurt(cache_dir)
+            out.append(data)
+            seg = data.segments[0]
+            mit = sum(1 for a in seg.areas.values() if a["p"] is not None)
+            spanne = (f", Jahrgänge {data.years[0].data_year}–{data.years[-1].data_year}"
+                      if len(data.years) > 1 else "")
+            print(f"Preisjahr {data.data_year}: {mit} von {len(seg.areas)} "
+                  f"{data.area_label}en{spanne}")
+        except (DownloadError, ExtractionError) as exc:
             print(f"übersprungen ({exc})")
 
     return out
