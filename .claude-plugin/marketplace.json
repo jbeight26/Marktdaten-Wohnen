@@ -8,8 +8,8 @@
     {
       "name": "marktdaten-wohnen",
       "source": "./plugins/marktdaten-wohnen",
-      "version": "1.2.0",
       "description": "Amtliche Immobilienmarktberichte der Gutachterausschüsse abrufen, Kaufpreise je Stadtteil für Hamburg, Wiesbaden und Kiel auswerten und als interaktive Seite darstellen."
     }
-  ]
+  ],
+  "_hinweis": "Der Plugin-Eintrag führt bewusst KEINE Versionsnummer. Claude Code nimmt dann den Commit-Stand als Version — jeder Push gilt als neue Fassung, und die automatische Aktualisierung greift ohne manuelles Hochzählen."
 }
